@@ -139,13 +139,20 @@ def add(
 
 
 @app.command("list")
-def list_items() -> None:
+def list_items(
+    tag: Optional[str] = typer.Option(None, help="Filter by tag"),
+    missing_pdf: bool = typer.Option(False, help="Only show entries without a PDF"),
+) -> None:
     """List stored artifacts."""
 
     async def runner() -> None:
         settings = get_settings()
         storage = LocalLibrary(settings)
         items = await storage.list_artifacts()
+        if tag:
+            items = [artifact for artifact in items if tag in artifact.metadata.tags]
+        if missing_pdf:
+            items = [artifact for artifact in items if not artifact.pdf_path]
         if not items:
             console.print("[yellow]Library is empty. Use `adoif add` to ingest content.")
             return
@@ -154,12 +161,14 @@ def list_items() -> None:
         table.add_column("Title")
         table.add_column("Journal")
         table.add_column("Tags")
+        table.add_column("PDF")
         for artifact in items:
             table.add_row(
                 artifact.metadata.doi,
                 artifact.metadata.title,
                 artifact.metadata.journal or "—",
                 ", ".join(artifact.metadata.tags) or "—",
+                "Yes" if artifact.pdf_path else "No",
             )
         console.print(table)
 
@@ -246,4 +255,39 @@ def _render_verification_table(results: list[VerificationResult]) -> None:
             "error": "red",
         }.get(result.status, "green")
         table.add_row(result.doi, f"[{status_color}]{result.status}[/{status_color}]", notes)
+    console.print(table)
+
+
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="FTS query string"),
+    limit: int = typer.Option(25, help="Maximum number of results"),
+) -> None:
+    """Full-text search across stored artifacts."""
+
+    async def runner() -> None:
+        settings = get_settings()
+        storage = LocalLibrary(settings)
+        items = await storage.search(query, limit)
+        if not items:
+            console.print("[yellow]No matches. Try another query.")
+            return
+        _print_search_results(items)
+
+    asyncio.run(runner())
+
+
+def _print_search_results(items: list[StoredArtifact]) -> None:
+    table = Table(title="Search Results")
+    table.add_column("DOI")
+    table.add_column("Title")
+    table.add_column("Journal")
+    table.add_column("Tags")
+    for artifact in items:
+        table.add_row(
+            artifact.metadata.doi,
+            artifact.metadata.title,
+            artifact.metadata.journal or "—",
+            ", ".join(artifact.metadata.tags) or "—",
+        )
     console.print(table)

@@ -1,34 +1,24 @@
-"""Storage interfaces for the local research library."""
+"""Storage interfaces for the local research library backed by SQLite."""
 
 from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
-import pyarrow as pa
-import pyarrow.parquet as pq
 import structlog
+from sqlalchemy import text
+from sqlmodel import Session, select
 
-from adoif.models import StoredArtifact
+from adoif.db import ArtifactRecord, FileRecord, create_engine_for_path, init_db, upsert_fts
+from adoif.models import ArticleMetadata, Author, StoredArtifact
 from adoif.settings import Settings
 from adoif.utils import sha256_file, slugify
 
 logger = structlog.get_logger(__name__)
-
-
-@dataclass
-class ManifestEntry:
-    checksum: str
-    doi: str
-    path: str
-    source: str | None
-    license: str | None
-    ingested_at: datetime
 
 
 class LibraryStorage(Protocol):
@@ -43,6 +33,9 @@ class LibraryStorage(Protocol):
     async def list_artifacts(self) -> list[StoredArtifact]:
         ...
 
+    async def search(self, query: str, limit: int = 25) -> list[StoredArtifact]:
+        ...
+
     def temp_pdf_path(self, identifier: str) -> Path:
         ...
 
@@ -53,43 +46,43 @@ class LibraryStorage(Protocol):
         temp_path: Path,
         source: str | None,
         license: str | None,
+        host_type: str | None,
     ) -> tuple[Path, str]:
         ...
 
 
 class LocalLibrary(LibraryStorage):
-    """Minimal placeholder implementation that simulates persistence."""
+    """SQLite-backed implementation of the research library."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._lock = asyncio.Lock()
-        self._memory_store: dict[str, StoredArtifact] = {}
         self._index_path = self._settings.data_dir / "library-index.json"
         self._temp_dir = self._settings.data_dir / "tmp"
         self._content_dir = self._settings.data_dir / "pdfs"
-        self._manifest_path = self._settings.data_dir / "manifest.parquet"
         self._settings.ensure_directories()
         self._temp_dir.mkdir(parents=True, exist_ok=True)
         self._content_dir.mkdir(parents=True, exist_ok=True)
-        self._manifest: dict[str, ManifestEntry] = {}
-        self._load_from_disk()
-        self._load_manifest()
+        self._engine = create_engine_for_path(self._settings.db_path)
+        init_db(self._engine)
+        self._bootstrap_from_legacy_index()
 
     async def upsert(self, artifact: StoredArtifact) -> StoredArtifact:
         async with self._lock:
-            logger.info("storage.upsert", doi=artifact.metadata.doi)
-            self._memory_store[artifact.metadata.doi] = artifact
-            self._persist()
+            await asyncio.to_thread(self._upsert_sync, artifact)
         return artifact
 
     async def find_by_doi(self, doi: str) -> StoredArtifact | None:
         async with self._lock:
-            logger.debug("storage.lookup", doi=doi)
-            return self._memory_store.get(doi)
+            return await asyncio.to_thread(self._find_sync, doi)
 
     async def list_artifacts(self) -> list[StoredArtifact]:
         async with self._lock:
-            return list(self._memory_store.values())
+            return await asyncio.to_thread(self._list_sync)
+
+    async def search(self, query: str, limit: int = 25) -> list[StoredArtifact]:
+        async with self._lock:
+            return await asyncio.to_thread(self._search_sync, query, limit)
 
     @property
     def root(self) -> Path:
@@ -107,14 +100,78 @@ class LocalLibrary(LibraryStorage):
         temp_path: Path,
         source: str | None,
         license: str | None,
+        host_type: str | None,
     ) -> tuple[Path, str]:
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, self._register_pdf_sync, doi, temp_path, source, license
+        return await asyncio.to_thread(
+            self._register_pdf_sync, doi, temp_path, source, license, host_type
         )
 
+    # Internal helpers -----------------------------------------------------
+
+    def _upsert_sync(self, artifact: StoredArtifact) -> None:
+        metadata = artifact.metadata
+        with Session(self._engine) as session:
+            record = session.get(ArtifactRecord, metadata.doi)
+            if record is None:
+                record = ArtifactRecord(doi=metadata.doi, stored_at=artifact.stored_at)
+            record.title = metadata.title
+            record.journal = metadata.journal
+            record.abstract = metadata.abstract
+            record.publication_date = metadata.publication_date
+            record.url = metadata.url
+            record.authors_json = json.dumps([author.model_dump() for author in metadata.authors])
+            record.tags_json = json.dumps(metadata.tags)
+            record.source_payload = json.dumps(metadata.source_payload)
+            record.stored_at = artifact.stored_at
+            record.checksum = artifact.checksum
+            record.pdf_path = str(artifact.pdf_path) if artifact.pdf_path else None
+            record.text_path = str(artifact.text_path) if artifact.text_path else None
+            session.add(record)
+            session.commit()
+        upsert_fts(
+            self._engine,
+            doi=metadata.doi,
+            title=metadata.title,
+            abstract=metadata.abstract,
+            tags=metadata.tags,
+        )
+
+    def _find_sync(self, doi: str) -> StoredArtifact | None:
+        with Session(self._engine) as session:
+            record = session.get(ArtifactRecord, doi)
+            return self._record_to_artifact(record) if record else None
+
+    def _list_sync(self) -> list[StoredArtifact]:
+        with Session(self._engine) as session:
+            statement = select(ArtifactRecord).order_by(ArtifactRecord.stored_at.desc())
+            records = session.exec(statement).all()
+        return [self._record_to_artifact(record) for record in records]
+
+    def _search_sync(self, query: str, limit: int) -> list[StoredArtifact]:
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT doi FROM artifact_fts WHERE artifact_fts MATCH :query LIMIT :limit"
+                ),
+                {"query": query, "limit": limit},
+            ).fetchall()
+        dois = [row[0] for row in rows]
+        if not dois:
+            return []
+        with Session(self._engine) as session:
+            statement = select(ArtifactRecord).where(ArtifactRecord.doi.in_(dois))
+            records = session.exec(statement).all()
+        record_map = {record.doi: record for record in records}
+        ordered = [record_map[doi] for doi in dois if doi in record_map]
+        return [self._record_to_artifact(record) for record in ordered]
+
     def _register_pdf_sync(
-        self, doi: str, temp_path: Path, source: str | None, license: str | None
+        self,
+        doi: str,
+        temp_path: Path,
+        source: str | None,
+        license: str | None,
+        host_type: str | None,
     ) -> tuple[Path, str]:
         checksum = sha256_file(temp_path)
         directory = self._content_dir / checksum[:2]
@@ -124,65 +181,53 @@ class LocalLibrary(LibraryStorage):
             temp_path.unlink(missing_ok=True)
         else:
             temp_path.replace(final_path)
-        entry = ManifestEntry(
-            checksum=checksum,
-            doi=doi,
-            path=str(final_path),
-            source=source,
-            license=license,
-            ingested_at=datetime.utcnow(),
-        )
-        self._manifest[checksum] = entry
-        self._persist_manifest()
+
+        with Session(self._engine) as session:
+            record = session.get(FileRecord, checksum)
+            if record is None:
+                record = FileRecord(checksum=checksum, doi=doi, path=str(final_path))
+            record.doi = doi
+            record.path = str(final_path)
+            record.source = source
+            record.license = license
+            record.host_type = host_type
+            record.ingested_at = datetime.utcnow()
+            session.add(record)
+            session.commit()
+
         return final_path, checksum
 
-    def _load_from_disk(self) -> None:
+    def _record_to_artifact(self, record: ArtifactRecord) -> StoredArtifact:
+        authors_payload = json.loads(record.authors_json or "[]")
+        tags_payload = json.loads(record.tags_json or "[]")
+        metadata = ArticleMetadata(
+            doi=record.doi,
+            title=record.title,
+            authors=[Author.model_validate(author) for author in authors_payload],
+            journal=record.journal,
+            abstract=record.abstract,
+            publication_date=record.publication_date,
+            url=record.url,
+            tags=tags_payload,
+            source_payload=json.loads(record.source_payload or "{}"),
+        )
+        return StoredArtifact(
+            metadata=metadata,
+            pdf_path=Path(record.pdf_path) if record.pdf_path else None,
+            text_path=Path(record.text_path) if record.text_path else None,
+            checksum=record.checksum,
+            stored_at=record.stored_at,
+        )
+
+    def _bootstrap_from_legacy_index(self) -> None:
         if not self._index_path.exists():
             return
         try:
             payload = json.loads(self._index_path.read_text())
-        except json.JSONDecodeError as exc:
-            logger.warning("storage.load_failed", error=str(exc))
+        except json.JSONDecodeError as exc:  # pragma: no cover - legacy file corrupted
+            logger.warning("storage.legacy_load_failed", error=str(exc))
             return
+        logger.info("storage.legacy_import", items=len(payload))
         for item in payload:
             artifact = StoredArtifact.model_validate(item)
-            self._memory_store[artifact.metadata.doi] = artifact
-
-    def _load_manifest(self) -> None:
-        if not self._manifest_path.exists():
-            return
-        try:
-            table = pq.read_table(self._manifest_path)
-        except Exception as exc:  # pragma: no cover - corrupted file edge case
-            logger.warning("storage.manifest_load_failed", error=str(exc))
-            return
-        for row in table.to_pylist():
-            entry = ManifestEntry(
-                checksum=row["checksum"],
-                doi=row["doi"],
-                path=row["path"],
-                source=row.get("source"),
-                license=row.get("license"),
-                ingested_at=datetime.fromisoformat(row["ingested_at"]),
-            )
-            self._manifest[entry.checksum] = entry
-
-    def _persist(self) -> None:
-        serialized = [
-            artifact.model_dump(mode="json") for artifact in self._memory_store.values()
-        ]
-        self._index_path.write_text(json.dumps(serialized, indent=2))
-
-    def _persist_manifest(self) -> None:
-        if not self._manifest:
-            return
-        table = pa.Table.from_pylist(
-            [
-                {
-                    **asdict(entry),
-                    "ingested_at": entry.ingested_at.isoformat(),
-                }
-                for entry in self._manifest.values()
-            ]
-        )
-        pq.write_table(table, self._manifest_path)
+            self._upsert_sync(artifact)

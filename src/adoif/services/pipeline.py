@@ -69,6 +69,7 @@ class IngestPipeline:
                     temp_path=download.path,
                     source=download.source,
                     license=download.license,
+                    host_type=download.host_type,
                 )
                 artifact.pdf_path = final_path
                 artifact.checksum = checksum

@@ -41,7 +41,7 @@ Storage Layer
 - **Interfaces**: `Typer` CLI, `FastAPI` + `HTMX` mini dashboard
 - **HTTP & resilience**: `httpx`, `tenacity`
 - **Parsing**: `PyMuPDF` (fitz), `pdfminer.six` fallback
-- **Metadata**: `pydantic`, `sqlite-utils`, FTS5, optional `chromadb`/`llama-index` later
+- **Metadata**: `pydantic`, SQLite/SQLModel + FTS5, optional `chromadb`/`llama-index` later
 - **Background jobs**: lightweight queue with `arq` or `rq`
 
 ### Environment
@@ -54,7 +54,8 @@ Storage Layer
 | Workflow | Description |
 | --- | --- |
 | `adoif add <doi|query>` | Resolve metadata, fetch PDF, and persist with SHA256-tracked PDFs |
-| `adoif list` | Inspect the local library (filtering coming soon) |
+| `adoif list --tag psych --missing-pdf` | Inspect the local library with filters |
+| `adoif search "<query>"` | Full-text search powered by SQLite FTS5 |
 | `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
 | `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
 | Dashboard (planned) | HTMX UI for triage queue, tagging, notes |
