@@ -12,17 +12,21 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from adoif.models import ArticleMetadata, Author, FetchRequest, StoredArtifact
-from adoif.services import CrossrefResolver, LocalLibrary, ResolverRegistry
+from adoif.models import FetchRequest, StoredArtifact
+from adoif.services import (
+    CrossrefResolver,
+    IngestError,
+    IngestPipeline,
+    LocalLibrary,
+    ManualOverrides,
+    ResolverRegistry,
+    UnpaywallPDFFetcher,
+)
 from adoif.settings import Settings, get_settings
 
 console = Console()
 app = typer.Typer(help="ADOIF – Article / DOI Fetcher")
 logger = structlog.get_logger(__name__)
-
-
-def _default_author() -> Author:
-    return Author(given_name="Unknown", family_name="Author")
 
 
 async def _handle_add(
@@ -35,42 +39,32 @@ async def _handle_add(
     settings = get_settings()
     storage = LocalLibrary(settings)
     request = FetchRequest(identifier=identifier)
+    overrides = ManualOverrides(title=title, journal=journal, tags=tags)
 
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         registry = ResolverRegistry([CrossrefResolver(client=client, settings=settings)])
-        result = await registry.resolve(request)
-    metadata: ArticleMetadata | None = result.metadata if result else None
-
-    if metadata is None and not title:
-        console.print(
-            "[red]No resolver returned metadata. Provide --title until integrations are ready."
+        pdf_fetcher = UnpaywallPDFFetcher(client=client, settings=settings)
+        pipeline = IngestPipeline(registry=registry, storage=storage, pdf_fetcher=pdf_fetcher)
+        outcome = await pipeline.ingest(
+            request=request,
+            overrides=overrides,
+            persist=not dry_run,
         )
-        raise typer.Exit(code=1)
 
-    if metadata is None:
-        metadata = ArticleMetadata(
-            doi=identifier if identifier.startswith("10.") else f"manual-{identifier}",
-            title=title or identifier,
-            journal=journal,
-            tags=list(tags),
-            authors=[_default_author()],
-        )
-    else:
-        metadata.tags = sorted(set(metadata.tags).union(tags))
-        if journal:
-            metadata.journal = journal
-
-    artifact = StoredArtifact(metadata=metadata)
+    artifact = outcome.artifact
 
     if dry_run:
-        console.print("[yellow]Dry run – not persisting metadata.")
+        console.print("[yellow]Dry run – not persisting metadata or PDFs.")
         _print_metadata(artifact)
         return
 
-    existing = await storage.find_by_doi(metadata.doi)
-    await storage.upsert(artifact)
-    action = "updated" if existing else "stored"
-    console.print(f"[green]{action.capitalize()}:[/green] {metadata.title}")
+    action = "Stored" if outcome.created else "Updated"
+    message = f"[green]{action}[/green]: {artifact.metadata.title}"
+    if outcome.pdf_downloaded:
+        message += " (PDF downloaded)"
+    elif settings.unpaywall_email is None:
+        message += " [yellow](No PDF – set ADOIF_UNPAYWALL_EMAIL)[/yellow]"
+    console.print(message)
 
 
 def _print_metadata(artifact: StoredArtifact) -> None:
@@ -132,7 +126,11 @@ def add(
     """Add a new article to the research library."""
 
     async def runner() -> None:
-        await _handle_add(identifier, title, journal, tuple(tag or []), dry_run)
+        try:
+            await _handle_add(identifier, title, journal, tuple(tag or []), dry_run)
+        except IngestError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from exc
 
     asyncio.run(runner())
 

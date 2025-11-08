@@ -44,6 +44,12 @@ Storage Layer
 - **Metadata**: `pydantic`, `sqlite-utils`, FTS5, optional `chromadb`/`llama-index` later
 - **Background jobs**: lightweight queue with `arq` or `rq`
 
+### Environment
+| Variable | Purpose |
+| --- | --- |
+| `ADOIF_DATA_DIR` | Optional override for the library root (default `~/adoif-library`) |
+| `ADOIF_UNPAYWALL_EMAIL` | Required for the PDF downloader (Unpaywall rate-limits via email) |
+
 ## Key workflows
 | Workflow | Description |
 | --- | --- |
