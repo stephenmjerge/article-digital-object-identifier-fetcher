@@ -12,9 +12,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from adoif import exporters
 from adoif.models import FetchRequest, StoredArtifact
 from adoif.services import (
     CrossrefResolver,
+    CrossrefVerifier,
     IngestError,
     IngestPipeline,
     LocalLibrary,
@@ -22,6 +24,7 @@ from adoif.services import (
     ResolverRegistry,
     UnpaywallPDFFetcher,
 )
+from adoif.services.verification import VerificationResult
 from adoif.settings import Settings, get_settings
 
 console = Console()
@@ -161,3 +164,86 @@ def list_items() -> None:
         console.print(table)
 
     asyncio.run(runner())
+
+
+@app.command()
+def export(
+    format: str = typer.Option("bibtex", help="Export format", case_sensitive=False),
+    tag: Optional[str] = typer.Option(None, help="Filter by tag"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write to file"),
+) -> None:
+    """Export citations as BibTeX or CSL JSON."""
+
+    fmt = format.lower()
+    if fmt not in {"bibtex", "csljson"}:
+        raise typer.BadParameter("Format must be 'bibtex' or 'csljson'.")
+
+    async def runner() -> None:
+        settings = get_settings()
+        storage = LocalLibrary(settings)
+        items = await storage.list_artifacts()
+        if tag:
+            items = [artifact for artifact in items if tag in artifact.metadata.tags]
+        if not items:
+            console.print("[yellow]No artifacts matched the export criteria.")
+            return
+        payload = (
+            exporters.export_bibtex(items)
+            if fmt == "bibtex"
+            else exporters.export_csl_json(items)
+        )
+        if output:
+            output.write_text(payload)
+            console.print(f"[green]Wrote {fmt} export to {output}")
+        else:
+            console.print(payload)
+
+    asyncio.run(runner())
+
+
+@app.command()
+def verify(
+    doi: Optional[str] = typer.Option(None, help="Single DOI to verify"),
+    all: bool = typer.Option(False, "--all", help="Verify every stored artifact"),
+) -> None:
+    """Check Crossref for retractions or updates."""
+
+    if not doi and not all:
+        raise typer.BadParameter("Provide a DOI or use --all.")
+
+    async def runner() -> None:
+        settings = get_settings()
+        storage = LocalLibrary(settings)
+        targets: list[str] = []
+        if all:
+            items = await storage.list_artifacts()
+            targets.extend([artifact.metadata.doi for artifact in items if artifact.metadata.doi])
+        if doi:
+            targets.append(doi)
+        if not targets:
+            console.print("[yellow]No DOIs available to verify.")
+            return
+        async with httpx.AsyncClient(timeout=20) as client:
+            verifier = CrossrefVerifier(client, settings)
+            results = await verifier.verify_many(targets)
+        _render_verification_table(results)
+
+    asyncio.run(runner())
+
+
+def _render_verification_table(results: list[VerificationResult]) -> None:
+    table = Table(title="Verification Results")
+    table.add_column("DOI")
+    table.add_column("Status")
+    table.add_column("Notes")
+    for result in results:
+        notes = "; ".join(result.notes) if result.notes else "—"
+        status_color = {
+            "retracted": "red",
+            "updated": "yellow",
+            "corrected": "yellow",
+            "replaced": "yellow",
+            "error": "red",
+        }.get(result.status, "green")
+        table.add_row(result.doi, f"[{status_color}]{result.status}[/{status_color}]", notes)
+    console.print(table)

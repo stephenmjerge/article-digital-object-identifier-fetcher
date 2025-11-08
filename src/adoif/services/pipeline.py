@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Sequence
 
 import structlog
@@ -63,11 +61,17 @@ class IngestPipeline:
 
         pdf_downloaded = False
         if persist and self._pdf_fetcher and metadata.doi:
-            pdf_path = self._storage.pdf_path_for(metadata.doi)
-            fetched = await self._pdf_fetcher.fetch(metadata.doi, pdf_path)
-            if fetched:
-                artifact.pdf_path = fetched
-                artifact.checksum = _sha256(fetched)
+            temp_path = self._storage.temp_pdf_path(metadata.doi)
+            download = await self._pdf_fetcher.fetch(metadata.doi, temp_path)
+            if download:
+                final_path, checksum = await self._storage.register_pdf(
+                    doi=metadata.doi,
+                    temp_path=download.path,
+                    source=download.source,
+                    license=download.license,
+                )
+                artifact.pdf_path = final_path
+                artifact.checksum = checksum
                 pdf_downloaded = True
 
         created = False
@@ -113,11 +117,3 @@ class IngestPipeline:
             tags=list(overrides.tags),
             authors=[Author(given_name="Unknown", family_name="Author")],
         )
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(8192), b""):
-            digest.update(chunk)
-    return digest.hexdigest()

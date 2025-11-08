@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
+from pathlib import Path
 
 DOI_PATTERN = re.compile(r"(10\.\d{4,9}/[\w.;()/:+-]+)", flags=re.IGNORECASE)
 SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
@@ -33,3 +35,12 @@ def slugify(value: str, max_length: int = 80) -> str:
     if not value:
         value = "item"
     return value[:max_length]
+
+
+def sha256_file(path: Path) -> str:
+    """Compute the SHA256 checksum for a file."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8192), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

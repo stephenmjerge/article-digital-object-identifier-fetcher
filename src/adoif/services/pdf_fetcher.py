@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
@@ -15,10 +16,18 @@ from adoif.settings import Settings
 logger = structlog.get_logger(__name__)
 
 
+@dataclass(slots=True)
+class PDFDownload:
+    path: Path
+    source: str
+    license: str | None = None
+    host_type: str | None = None
+
+
 class PDFFetcher(Protocol):
     """Protocol for components that download PDFs."""
 
-    async def fetch(self, doi: str, target: Path) -> Path | None:
+    async def fetch(self, doi: str, target: Path) -> PDFDownload | None:
         ...
 
 
@@ -32,7 +41,7 @@ class UnpaywallPDFFetcher:
         self._settings = settings
         self._semaphore = asyncio.Semaphore(3)
 
-    async def fetch(self, doi: str, target: Path) -> Path | None:
+    async def fetch(self, doi: str, target: Path) -> PDFDownload | None:
         if not self._settings.unpaywall_email:
             logger.debug("pdf.fetch.skipped", reason="missing_unpaywall_email")
             return None
@@ -42,23 +51,36 @@ class UnpaywallPDFFetcher:
             except httpx.HTTPError as exc:
                 logger.warning("pdf.lookup_failed", doi=doi, error=str(exc))
                 return None
-            if not location:
+            if not location or not location.get("url"):
                 logger.info("pdf.location_missing", doi=doi)
                 return None
             try:
-                return await self._download(location, target)
+                path = await self._download(location["url"], target)
+                return PDFDownload(
+                    path=path,
+                    source=location.get("host_type", self.name),
+                    license=location.get("license"),
+                    host_type=location.get("host_type"),
+                )
             except httpx.HTTPError as exc:
                 logger.warning("pdf.download_failed", doi=doi, error=str(exc))
                 return None
 
-    async def _lookup_pdf_url(self, doi: str) -> str | None:
+    async def _lookup_pdf_url(self, doi: str) -> dict | None:
         url = f"{self._settings.unpaywall_base_url}/{quote(doi)}"
         params = {"email": self._settings.unpaywall_email}
         response = await self._client.get(url, params=params, timeout=30)
         response.raise_for_status()
         payload = response.json()
         best = payload.get("best_oa_location") or {}
-        return best.get("url_for_pdf")
+        url_for_pdf = best.get("url_for_pdf")
+        if not url_for_pdf:
+            return None
+        return {
+            "url": url_for_pdf,
+            "license": best.get("license"),
+            "host_type": best.get("host_type"),
+        }
 
     async def _download(self, url: str, target: Path) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)

@@ -53,11 +53,11 @@ Storage Layer
 ## Key workflows
 | Workflow | Description |
 | --- | --- |
-| `adoif add <doi|query>` | Resolve metadata, fetch PDF, extract/enrich, store |
-| `adoif watch <folder>` | Monitor download folder and auto-import |
-| `adoif search --tag cardio` | Hybrid keyword/semantic search |
-| `adoif export --format spaced-repetition` | Generate flashcards with citations |
-| Dashboard | HTMX UI for triage queue, tagging, notes |
+| `adoif add <doi|query>` | Resolve metadata, fetch PDF, and persist with SHA256-tracked PDFs |
+| `adoif list` | Inspect the local library (filtering coming soon) |
+| `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
+| `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
+| Dashboard (planned) | HTMX UI for triage queue, tagging, notes |
 
 ## Roadmap
 1. **MVP ingest loop**: DOI resolver → metadata schema → storage API → CLI.
