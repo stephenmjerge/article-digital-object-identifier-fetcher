@@ -135,8 +135,8 @@ def add(
     asyncio.run(runner())
 
 
-@app.command()
-def list() -> None:
+@app.command("list")
+def list_items() -> None:
     """List stored artifacts."""
 
     async def runner() -> None:
