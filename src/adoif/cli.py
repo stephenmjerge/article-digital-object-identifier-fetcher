@@ -15,6 +15,7 @@ from rich.table import Table
 from adoif import exporters
 from adoif.models import FetchRequest, StoredArtifact
 from adoif.services import (
+    BatchScanner,
     CrossrefResolver,
     CrossrefVerifier,
     ExtractionService,
@@ -29,6 +30,7 @@ from adoif.services import (
     ScreeningService,
     SearchAggregator,
     SearchResult,
+    summarize_candidates,
     UnpaywallPDFFetcher,
 )
 from adoif.services.verification import VerificationResult
@@ -161,6 +163,71 @@ def add(
         except IngestError as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=1) from exc
+
+    asyncio.run(runner())
+
+
+@app.command("add-batch")
+def add_batch(
+    directory: Path = typer.Argument(..., exists=True, file_okay=False, readable=True, resolve_path=True),
+    course: Optional[str] = typer.Option(None, help="Course name tag applied to every record"),
+    tag: Optional[list[str]] = typer.Option(None, "--tag", "-t", help="Additional tags"),
+    limit: Optional[int] = typer.Option(None, help="Maximum PDFs to process"),
+    dry_run: bool = typer.Option(False, help="Preview detected metadata without ingesting"),
+) -> None:
+    """Ingest every PDF in a course-pack directory."""
+
+    scanner = BatchScanner()
+    candidates = scanner.scan(directory, limit=limit)
+    if not candidates:
+        console.print("[yellow]No PDFs found in the provided directory.")
+        return
+
+    table = Table(title=f"Batch preview ({len(candidates)} PDFs)")
+    table.add_column("File")
+    table.add_column("Title")
+    table.add_column("DOI")
+    for candidate in candidates:
+        table.add_row(candidate.path.name, candidate.title, candidate.doi or "—")
+    console.print(table)
+
+    tags: list[str] = list(tag or [])
+    if course:
+        tags.append(course)
+    tags = sorted(set(tags))
+
+    if dry_run:
+        console.print("[yellow]Dry run – no records were ingested.")
+        return
+
+    async def runner() -> None:
+        settings = get_settings()
+        storage = LocalLibrary(settings)
+        async with httpx.AsyncClient(timeout=30) as client:
+            registry = ResolverRegistry([CrossrefResolver(client=client, settings=settings)])
+            pipeline = IngestPipeline(
+                registry=registry,
+                storage=storage,
+                pdf_fetcher=UnpaywallPDFFetcher(client=client, settings=settings),
+            )
+            for candidate in candidates:
+                identifier = candidate.doi or candidate.identifier
+                overrides = ManualOverrides(title=candidate.title, tags=tuple(tags))
+                try:
+                    outcome = await pipeline.ingest(
+                        request=FetchRequest(identifier=identifier),
+                        overrides=overrides,
+                        local_pdf=candidate.path,
+                    )
+                except IngestError as exc:
+                    console.print(
+                        f"[red]{candidate.path.name}: failed[/red] – {exc}"
+                    )
+                    continue
+                action = "Stored" if outcome.created else "Updated"
+                console.print(
+                    f"[green]{candidate.path.name}[/green]: {action} • {candidate.title}"
+                )
 
     asyncio.run(runner())
 

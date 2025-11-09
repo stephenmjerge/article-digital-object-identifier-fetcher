@@ -1,5 +1,6 @@
 """Service abstractions for the ADOIF application."""
 
+from .batch import BatchCandidate, BatchScanner, summarize_candidates
 from .pdf_fetcher import PDFFetcher, UnpaywallPDFFetcher
 from .pipeline import IngestError, IngestOutcome, IngestPipeline, ManualOverrides
 from .resolvers import CrossrefResolver, MetadataResolver, ResolverRegistry
@@ -37,4 +38,7 @@ __all__ = [
     "ScreeningService",
     "PrismaSummary",
     "ExtractionService",
+    "BatchScanner",
+    "BatchCandidate",
+    "summarize_candidates",
 ]

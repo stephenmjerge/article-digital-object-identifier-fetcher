@@ -54,6 +54,7 @@ Storage Layer
 | Workflow | Description |
 | --- | --- |
 | `adoif add <doi|query>` | Resolve metadata, fetch PDF, and persist with SHA256-tracked PDFs |
+| `adoif add-batch path/to/course-pack` | Scan a folder of PDFs, derive titles, and ingest them with course tags |
 | `adoif list --tag psych --missing-pdf` | Inspect the local library with filters |
 | `adoif find "<query>" --sources pubmed,openalex` | Query external APIs for new literature |
 | `adoif search "<query>"` | Full-text search powered by SQLite FTS5 |
@@ -69,6 +70,7 @@ Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow 
 
 - boots a clean demo library under `.adoif-data`
 - ingests an article using the bundled PDF (`demo-assets/sample-article.pdf`) via `adoif add ... --pdf`
+- ingests entire syllabus folders with `adoif add-batch ./course-packs/psy305 --course PSY305`
 - exercises listing, search, export, verification, screening, and extraction commands
 - ends with the FastAPI dashboard so you can screen-share the whole flow
 
