@@ -14,7 +14,8 @@ ADOIF is a local-first research assistant that keeps decades of medical literatu
 4. Rich search (full text + tags + semantic vectors).
 5. Automation hooks (auto-tagging, summarization cards, spaced repetition exports).
 
-## Planned architecture
+## Architecture (current + planned)
+_Steps marked as planned are on the near-term roadmap and not yet implemented._
 ```
 CLI / FastAPI endpoints
         │
@@ -26,11 +27,11 @@ PDF Fetchers ─ OA provider → cache → storage
         │
 Pipeline
   - metadata normalization (Pydantic)
-  - PDF text extraction (PyMuPDF)
-  - enrichment (MeSH tags via scispaCy, vector embedding)
+  - PDF text extraction (PyMuPDF) *(planned)*
+  - enrichment (MeSH tags via scispaCy, vector embedding) *(planned)*
         │
 Storage Layer
-  - SQLite (FTS5 + vector table)
+  - SQLite (FTS5 + vector table *(planned)*)
   - Library filesystem layout
   - Audit logs
 ```
@@ -40,9 +41,10 @@ Storage Layer
 - **Tooling**: `uv` (dependency/runtime), `ruff`, `black`, `mypy`, `pytest`
 - **Interfaces**: `Typer` CLI, `FastAPI` + `HTMX` mini dashboard
 - **HTTP & resilience**: `httpx`, `tenacity`
-- **Parsing**: `PyMuPDF` (fitz), `pdfminer.six` fallback
-- **Metadata**: `pydantic`, SQLite/SQLModel + FTS5, optional `chromadb`/`llama-index` later
-- **Background jobs**: lightweight queue with `arq` or `rq`
+- **Metadata/storage**: `pydantic`, SQLite/SQLModel + FTS5
+- **Parsing (planned)**: `PyMuPDF` (fitz), `pdfminer.six`
+- **Semantic search (planned)**: `chromadb`/`llama-index`
+- **Background jobs (planned)**: lightweight queue with `arq` or `rq`
 
 ### Environment
 | Variable | Purpose |
@@ -63,7 +65,7 @@ Storage Layer
 | `adoif serve` | Launch the FastAPI dashboard (library + insights + screening + extraction) |
 | `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
 | `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
-| Dashboard (planned) | HTMX UI for triage queue, tagging, notes |
+| `adoif serve` dashboard | HTMX UI for triage queue, tagging, notes |
 
 ## Quickstart demo
 Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow `docs/QUICKSTART.md` for a guided walkthrough that:
@@ -77,17 +79,17 @@ Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow 
 Because `adoif add` now accepts `--pdf /path/to/local.pdf`, you can attach syllabi or lecture PDFs even when Unpaywall access is unavailable—perfect for offline demos.
 
 ## Roadmap
-1. **MVP ingest loop**: DOI resolver → metadata schema → storage API → CLI.
-2. **PDF pipeline**: OA fetch, hashing, text extraction, duplicate detection.
-3. **Search & tagging**: FTS indices, auto-tagging via scispaCy/MeSH, filters.
-4. **Insights & study aids**: summary cards, spaced repetition exporter.
-5. **Integrations**: Notion export, Zotero sync, optional cloud backup template.
+1. **Evidence notebooks & highlights**: capture reflections/notes per DOI from the CLI/dashboard.
+2. **Admissions-ready report**: generate a Markdown/HTML portfolio summarizing ingest history, screening stats, and extraction progress.
+3. **Syllabus scheduler**: import due dates from course materials and surface “read today” queues.
+4. **Insights & study aids**: summary cards, spaced-repetition or flashcard exports.
+5. **Integrations**: Notion/Zotero export plus optional cloud backup template.
 
 ## Next
-1. Initialize repo tooling (`uv init`, CI, pre-commit).
-2. Flesh out metadata models + storage interfaces.
-3. Build CLI skeleton with dependency injection for resolvers and storage.
-4. Stub FastAPI service for future dashboard.
+1. Implement the note/highlight workflow and expose it in the dashboard.
+2. Add a `adoif schedule` helper that ingests syllabus CSV/ICS files into reminders.
+3. Expand automated tests to cover the new batch ingest command end-to-end.
+4. Capture screenshots + demo data for the admissions portfolio bundle.
 
 ## Dashboard preview
 Run `adoif serve` and visit `http://127.0.0.1:8000` for:
