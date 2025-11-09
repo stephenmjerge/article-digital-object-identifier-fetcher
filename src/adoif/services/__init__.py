@@ -3,6 +3,13 @@
 from .pdf_fetcher import PDFFetcher, UnpaywallPDFFetcher
 from .pipeline import IngestError, IngestOutcome, IngestPipeline, ManualOverrides
 from .resolvers import CrossrefResolver, MetadataResolver, ResolverRegistry
+from .search import (
+    OpenAlexSearchResolver,
+    PubMedSearchResolver,
+    SearchAggregator,
+    SearchResolver,
+    SearchResult,
+)
 from .storage import LibraryStorage, LocalLibrary
 from .verification import CrossrefVerifier, VerificationResult
 
@@ -20,4 +27,9 @@ __all__ = [
     "IngestError",
     "CrossrefVerifier",
     "VerificationResult",
+    "SearchAggregator",
+    "SearchResolver",
+    "SearchResult",
+    "OpenAlexSearchResolver",
+    "PubMedSearchResolver",
 ]

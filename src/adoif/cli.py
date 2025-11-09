@@ -21,7 +21,11 @@ from adoif.services import (
     IngestPipeline,
     LocalLibrary,
     ManualOverrides,
+    OpenAlexSearchResolver,
+    PubMedSearchResolver,
     ResolverRegistry,
+    SearchAggregator,
+    SearchResult,
     UnpaywallPDFFetcher,
 )
 from adoif.services.verification import VerificationResult
@@ -289,5 +293,55 @@ def _print_search_results(items: list[StoredArtifact]) -> None:
             artifact.metadata.title,
             artifact.metadata.journal or "—",
             ", ".join(artifact.metadata.tags) or "—",
+        )
+    console.print(table)
+
+
+@app.command()
+def find(
+    query: str = typer.Argument(..., help="External search query"),
+    sources: str = typer.Option(
+        "pubmed,openalex",
+        help="Comma-separated sources (pubmed, openalex, all)",
+    ),
+    limit: int = typer.Option(20, help="Total maximum results"),
+) -> None:
+    """Search external APIs (PubMed/OpenAlex) for new articles."""
+
+    source_set = {entry.strip().lower() for entry in sources.split(",") if entry.strip()}
+    if not source_set:
+        source_set = {"all"}
+
+    async def runner() -> None:
+        async with httpx.AsyncClient(timeout=30) as client:
+            aggregator = SearchAggregator(
+                [
+                    PubMedSearchResolver(client),
+                    OpenAlexSearchResolver(client),
+                ]
+            )
+            results = await aggregator.search(query, sources=source_set, limit=limit)
+        if not results:
+            console.print("[yellow]No results returned. Try another query or source.")
+            return
+        _print_find_results(results)
+
+    asyncio.run(runner())
+
+
+def _print_find_results(results: list[SearchResult]) -> None:
+    table = Table(title="External Search Results")
+    table.add_column("Source")
+    table.add_column("Title")
+    table.add_column("Identifier")
+    table.add_column("Journal")
+    table.add_column("Year")
+    for entry in results:
+        table.add_row(
+            entry.source,
+            entry.title,
+            entry.identifier or "—",
+            entry.journal or "—",
+            entry.year or "—",
         )
     console.print(table)

@@ -55,6 +55,7 @@ Storage Layer
 | --- | --- |
 | `adoif add <doi|query>` | Resolve metadata, fetch PDF, and persist with SHA256-tracked PDFs |
 | `adoif list --tag psych --missing-pdf` | Inspect the local library with filters |
+| `adoif find "<query>" --sources pubmed,openalex` | Query external APIs for new literature |
 | `adoif search "<query>"` | Full-text search powered by SQLite FTS5 |
 | `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
 | `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
