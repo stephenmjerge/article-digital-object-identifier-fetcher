@@ -10,6 +10,7 @@ from .search import (
     SearchResolver,
     SearchResult,
 )
+from .screening import PrismaSummary, ScreeningService
 from .storage import LibraryStorage, LocalLibrary
 from .verification import CrossrefVerifier, VerificationResult
 
@@ -32,4 +33,6 @@ __all__ = [
     "SearchResult",
     "OpenAlexSearchResolver",
     "PubMedSearchResolver",
+    "ScreeningService",
+    "PrismaSummary",
 ]

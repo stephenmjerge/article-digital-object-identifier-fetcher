@@ -13,7 +13,7 @@ import structlog
 from sqlalchemy import text
 from sqlmodel import Session, select
 
-from adoif.db import ArtifactRecord, FileRecord, create_engine_for_path, init_db, upsert_fts
+from adoif.db import ArtifactRecord, FileRecord, get_engine, upsert_fts
 from adoif.models import ArticleMetadata, Author, StoredArtifact
 from adoif.settings import Settings
 from adoif.utils import sha256_file, slugify
@@ -63,8 +63,7 @@ class LocalLibrary(LibraryStorage):
         self._settings.ensure_directories()
         self._temp_dir.mkdir(parents=True, exist_ok=True)
         self._content_dir.mkdir(parents=True, exist_ok=True)
-        self._engine = create_engine_for_path(self._settings.db_path)
-        init_db(self._engine)
+        self._engine = get_engine(str(self._settings.db_path))
         self._bootstrap_from_legacy_index()
 
     async def upsert(self, artifact: StoredArtifact) -> StoredArtifact:

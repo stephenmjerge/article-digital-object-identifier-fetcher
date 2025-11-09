@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
 
@@ -39,6 +40,31 @@ class FileRecord(SQLModel, table=True):
     ingested_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ScreeningProject(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    query: str
+    sources: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    notes: str | None = None
+
+
+class ScreeningCandidate(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="screeningproject.id")
+    identifier: str | None = None
+    title: str
+    journal: str | None = None
+    year: str | None = None
+    source: str
+    url: str | None = None
+    status: str = Field(default="unreviewed")
+    reason: str | None = None
+    metadata_json: str = Field(default="{}")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 def create_engine_for_path(db_path: Path):
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return create_engine(
@@ -57,6 +83,13 @@ def init_db(engine) -> None:
             USING fts5(doi UNINDEXED, title, abstract, tags);
             """
         )
+
+
+@lru_cache(maxsize=4)
+def get_engine(path_str: str):
+    engine = create_engine_for_path(Path(path_str))
+    init_db(engine)
+    return engine
 
 
 def upsert_fts(engine, doi: str, title: str, abstract: str | None, tags: Iterable[str]) -> None:

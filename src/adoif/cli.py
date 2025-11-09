@@ -22,8 +22,10 @@ from adoif.services import (
     LocalLibrary,
     ManualOverrides,
     OpenAlexSearchResolver,
+    PrismaSummary,
     PubMedSearchResolver,
     ResolverRegistry,
+    ScreeningService,
     SearchAggregator,
     SearchResult,
     UnpaywallPDFFetcher,
@@ -33,6 +35,9 @@ from adoif.settings import Settings, get_settings
 
 console = Console()
 app = typer.Typer(help="ADOIF – Article / DOI Fetcher")
+screen_app = typer.Typer(help="Screening workflows")
+app.add_typer(screen_app, name="screen")
+SCREEN_LABELS = {"include", "exclude", "maybe", "unreviewed"}
 logger = structlog.get_logger(__name__)
 
 
@@ -297,6 +302,17 @@ def _print_search_results(items: list[StoredArtifact]) -> None:
     console.print(table)
 
 
+def _build_search_aggregator(client: httpx.AsyncClient) -> SearchAggregator:
+    return SearchAggregator(
+        [PubMedSearchResolver(client), OpenAlexSearchResolver(client)]
+    )
+
+
+def _parse_sources(value: str) -> set[str]:
+    items = {entry.strip().lower() for entry in value.split(",") if entry.strip()}
+    return items or {"all"}
+
+
 @app.command()
 def find(
     query: str = typer.Argument(..., help="External search query"),
@@ -308,18 +324,11 @@ def find(
 ) -> None:
     """Search external APIs (PubMed/OpenAlex) for new articles."""
 
-    source_set = {entry.strip().lower() for entry in sources.split(",") if entry.strip()}
-    if not source_set:
-        source_set = {"all"}
+    source_set = _parse_sources(sources)
 
     async def runner() -> None:
         async with httpx.AsyncClient(timeout=30) as client:
-            aggregator = SearchAggregator(
-                [
-                    PubMedSearchResolver(client),
-                    OpenAlexSearchResolver(client),
-                ]
-            )
+            aggregator = _build_search_aggregator(client)
             results = await aggregator.search(query, sources=source_set, limit=limit)
         if not results:
             console.print("[yellow]No results returned. Try another query or source.")
@@ -344,4 +353,128 @@ def _print_find_results(results: list[SearchResult]) -> None:
             entry.journal or "—",
             entry.year or "—",
         )
+    console.print(table)
+
+
+@screen_app.command("projects")
+def screen_projects() -> None:
+    """List screening projects."""
+
+    service = ScreeningService(get_settings())
+    projects = service.list_projects()
+    if not projects:
+        console.print("[yellow]No screening projects yet. Use `adoif screen start`.")
+        return
+    table = Table(title="Screening Projects")
+    table.add_column("ID")
+    table.add_column("Name")
+    table.add_column("Query")
+    table.add_column("Sources")
+    table.add_column("Created")
+    for project in projects:
+        table.add_row(
+            str(project.id),
+            project.name,
+            project.query,
+            project.sources,
+            project.created_at.strftime("%Y-%m-%d"),
+        )
+    console.print(table)
+
+
+@screen_app.command("start")
+def screen_start(
+    name: str = typer.Option(..., help="Project name"),
+    query: str = typer.Option(..., help="Search query"),
+    sources: str = typer.Option("pubmed,openalex", help="Comma-separated sources"),
+    limit: int = typer.Option(40, help="Max results to ingest"),
+    notes: Optional[str] = typer.Option(None, help="Optional notes"),
+) -> None:
+    """Create a new screening project and seed candidates."""
+
+    source_set = _parse_sources(sources)
+
+    async def runner() -> None:
+        async with httpx.AsyncClient(timeout=30) as client:
+            aggregator = _build_search_aggregator(client)
+            results = await aggregator.search(query, sources=source_set, limit=limit)
+        if not results:
+            console.print("[yellow]No results returned; project not created.")
+            return
+        service = ScreeningService(get_settings())
+        project = service.create_project(
+            name=name,
+            query=query,
+            sources=source_set,
+            notes=notes,
+            results=results,
+        )
+        console.print(
+            f"[green]Created project {project.id}[/green] with {len(results)} candidates."
+        )
+
+    asyncio.run(runner())
+
+
+@screen_app.command("candidates")
+def screen_candidates(
+    project_id: int = typer.Option(..., help="Project ID"),
+    status: str = typer.Option("all", help="Filter by status"),
+) -> None:
+    service = ScreeningService(get_settings())
+    items = service.list_candidates(project_id, status=status)
+    if not items:
+        console.print("[yellow]No candidates match the filter.")
+        return
+    table = Table(title=f"Candidates for project {project_id}")
+    table.add_column("Candidate ID")
+    table.add_column("Title")
+    table.add_column("Source")
+    table.add_column("Status")
+    table.add_column("Reason")
+    for item in items:
+        table.add_row(
+            str(item.id),
+            item.title,
+            item.source,
+            item.status,
+            item.reason or "—",
+        )
+    console.print(table)
+
+
+@screen_app.command("label")
+def screen_label(
+    candidate_id: int = typer.Option(..., help="Candidate ID"),
+    label: str = typer.Option(..., help="include/exclude/maybe"),
+    reason: Optional[str] = typer.Option(None, help="Optional rationale"),
+) -> None:
+    label_lower = label.lower()
+    if label_lower not in SCREEN_LABELS:
+        raise typer.BadParameter(f"Label must be one of {', '.join(SCREEN_LABELS)}")
+    service = ScreeningService(get_settings())
+    updated = service.update_candidate(candidate_id, status=label_lower, reason=reason)
+    if not updated:
+        console.print("[red]Candidate not found.")
+        raise typer.Exit(code=1)
+    console.print(
+        f"[green]Updated candidate {candidate_id}[/green] → {label_lower}"
+    )
+
+
+@screen_app.command("prisma")
+def screen_prisma(project_id: int = typer.Option(..., help="Project ID")) -> None:
+    service = ScreeningService(get_settings())
+    summary = service.prisma_summary(project_id)
+    _print_prisma_summary(summary)
+
+
+def _print_prisma_summary(summary: PrismaSummary) -> None:
+    table = Table(title=f"PRISMA Summary (Project {summary.project_id})")
+    table.add_column("Metric")
+    table.add_column("Count")
+    table.add_row("Total", str(summary.total))
+    table.add_row("Included", str(summary.included))
+    table.add_row("Excluded", str(summary.excluded))
+    table.add_row("Pending", str(summary.pending))
     console.print(table)
