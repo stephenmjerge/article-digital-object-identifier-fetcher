@@ -64,6 +64,16 @@ Storage Layer
 | `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
 | Dashboard (planned) | HTMX UI for triage queue, tagging, notes |
 
+## Quickstart demo
+Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow `docs/QUICKSTART.md` for a guided walkthrough that:
+
+- boots a clean demo library under `.adoif-data`
+- ingests an article using the bundled PDF (`demo-assets/sample-article.pdf`) via `adoif add ... --pdf`
+- exercises listing, search, export, verification, screening, and extraction commands
+- ends with the FastAPI dashboard so you can screen-share the whole flow
+
+Because `adoif add` now accepts `--pdf /path/to/local.pdf`, you can attach syllabi or lecture PDFs even when Unpaywall access is unavailable—perfect for offline demos.
+
 ## Roadmap
 1. **MVP ingest loop**: DOI resolver → metadata schema → storage API → CLI.
 2. **PDF pipeline**: OA fetch, hashing, text extraction, duplicate detection.

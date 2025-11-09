@@ -50,6 +50,7 @@ async def _handle_add(
     journal: Optional[str],
     tags: tuple[str, ...],
     dry_run: bool,
+    pdf_path: Optional[Path],
 ) -> None:
     settings = get_settings()
     storage = LocalLibrary(settings)
@@ -64,6 +65,7 @@ async def _handle_add(
             request=request,
             overrides=overrides,
             persist=not dry_run,
+            local_pdf=pdf_path,
         )
 
     artifact = outcome.artifact
@@ -75,8 +77,9 @@ async def _handle_add(
 
     action = "Stored" if outcome.created else "Updated"
     message = f"[green]{action}[/green]: {artifact.metadata.title}"
-    if outcome.pdf_downloaded:
-        message += " (PDF downloaded)"
+    if outcome.pdf_saved:
+        detail = "attached" if pdf_path else "downloaded"
+        message += f" (PDF {detail})"
     elif settings.unpaywall_email is None:
         message += " [yellow](No PDF – set ADOIF_UNPAYWALL_EMAIL)[/yellow]"
     console.print(message)
@@ -136,13 +139,25 @@ def add(
     title: Optional[str] = typer.Option(None, help="Manual title override"),
     journal: Optional[str] = typer.Option(None, help="Manual journal override"),
     tag: Optional[list[str]] = typer.Option(None, "--tag", "-t", help="Tag applied to the record"),
+    pdf: Optional[Path] = typer.Option(
+        None,
+        "--pdf",
+        help="Attach an existing PDF instead of downloading via Unpaywall",
+    ),
     dry_run: bool = typer.Option(False, help="Run pipeline without persistence"),
 ) -> None:
     """Add a new article to the research library."""
 
     async def runner() -> None:
+        pdf_path = None
+        if pdf:
+            if not pdf.exists():
+                raise typer.BadParameter("PDF path does not exist.")
+            if not pdf.is_file():
+                raise typer.BadParameter("PDF path must point to a file.")
+            pdf_path = pdf
         try:
-            await _handle_add(identifier, title, journal, tuple(tag or []), dry_run)
+            await _handle_add(identifier, title, journal, tuple(tag or []), dry_run, pdf_path)
         except IngestError as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=1) from exc
