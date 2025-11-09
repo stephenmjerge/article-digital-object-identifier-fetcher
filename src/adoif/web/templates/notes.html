@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <hgroup>
+    <h2>Notes & Reflections</h2>
+    <p>Attach discussion-board responses or highlight takeaways per DOI.</p>
+  </hgroup>
+  <div class="grid">
+    <article class="card">
+      <h3>Add note</h3>
+      <form method="post" action="/notes">
+        <label>
+          DOI
+          <input type="text" name="doi" required />
+        </label>
+        <label>
+          Tags (comma separated)
+          <input type="text" name="tags" placeholder="PSY305, reflection" />
+        </label>
+        <label>
+          Note body
+          <textarea name="body" rows="4" required></textarea>
+        </label>
+        <button type="submit">Save note</button>
+      </form>
+    </article>
+    <article class="card">
+      <h3>Recent notes</h3>
+      {% if notes %}
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>DOI</th>
+            <th>Tags</th>
+            <th>Body</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for note in notes %}
+          <tr>
+            <td>{{ note.created_at.strftime("%Y-%m-%d") }}</td>
+            <td>{{ note.doi }}</td>
+            <td>{{ ", ".join(note.tags) if note.tags else "—" }}</td>
+            <td>{{ note.body }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>No notes yet. Use the form to add your first reflection.</p>
+      {% endif %}
+    </article>
+  </div>
+</section>
+{% endblock %}

@@ -36,7 +36,16 @@ adoif add-batch course-packs/psy305 --course PSY305 --tag baker-college
 ```
 ADOIF scans each PDF for metadata, derives best-effort titles, attaches the local file, and applies the course tags so you can filter by class later. Add `--dry-run` to preview what would be imported.
 
-## 4. Inspect the library
+## 4. Capture reflections
+Tie discussion-board answers to the article you just ingested:
+```bash
+adoif note add --doi 10.1038/s41586-020-2649-2 \
+  --text "Key insight for PSY305 discussion" --tag PSY305 --tag reflection
+adoif note list --doi 10.1038/s41586-020-2649-2
+```
+Visit `http://127.0.0.1:8000/notes` to add/edit notes from the dashboard.
+
+## 5. Inspect the library
 ```bash
 adoif list
 adoif search "psych"
@@ -45,7 +54,7 @@ adoif verify --all
 ```
 These commands prove that metadata, FTS search, export, and Crossref verification all work end-to-end.
 
-## 5. Run a screening sprint
+## 6. Run a screening sprint
 1. Seed a project with PubMed + OpenAlex hits:
    ```bash
    adoif screen start --name "psych-trials" \
@@ -59,7 +68,7 @@ These commands prove that metadata, FTS search, export, and Crossref verificatio
    ```
 This gives you PRISMA-style numbers to showcase disciplined triage.
 
-## 6. Capture PICO extractions
+## 7. Capture PICO extractions
 Record structured notes for an accepted paper:
 ```bash
 adoif extract record --doi 10.1038/s41586-020-2649-2 \
@@ -69,14 +78,14 @@ adoif extract list
 ```
 Optional: append statistical outcomes with `--effect-size`, `--ci-low`, etc.
 
-## 7. Launch the dashboard
+## 8. Launch the dashboard
 Bring everything together visually:
 ```bash
 adoif serve --host 127.0.0.1 --port 8000
 ```
 Visit `http://127.0.0.1:8000` to walk reviewers through the Library, Screening, Extractions, and Insights tabs.
 
-## 8. Reset between demos
+## 9. Reset between demos
 Remove the data directory when you want a clean slate:
 ```bash
 rm -rf "$ADOIF_DATA_DIR"

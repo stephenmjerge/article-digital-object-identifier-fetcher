@@ -23,6 +23,7 @@ from adoif.services import (
     IngestPipeline,
     LocalLibrary,
     ManualOverrides,
+    NoteService,
     OpenAlexSearchResolver,
     PrismaSummary,
     PubMedSearchResolver,
@@ -40,8 +41,10 @@ console = Console()
 app = typer.Typer(help="ADOIF – Article / DOI Fetcher")
 screen_app = typer.Typer(help="Screening workflows")
 extract_app = typer.Typer(help="PICO extraction workflows")
+note_app = typer.Typer(help="Notes & reflections")
 app.add_typer(screen_app, name="screen")
 app.add_typer(extract_app, name="extract")
+app.add_typer(note_app, name="note")
 SCREEN_LABELS = {"include", "exclude", "maybe", "unreviewed"}
 logger = structlog.get_logger(__name__)
 
@@ -230,6 +233,49 @@ def add_batch(
                 )
 
     asyncio.run(runner())
+
+
+@note_app.command("add")
+def note_add(
+    doi: str = typer.Option(..., help="DOI to attach the note to"),
+    text: str = typer.Option(..., "--text", "-t", help="Note body"),
+    tag: Optional[list[str]] = typer.Option(None, "--tag", help="Optional tags"),
+) -> None:
+    """Record a note/reflection for an article."""
+
+    service = NoteService(get_settings())
+    note = service.add_note(doi=doi, body=text, tags=list(tag or []))
+    tag_display = f" [{', '.join(note.tags)}]" if note.tags else ""
+    console.print(
+        f"[green]Saved note[/green] for {note.doi}{tag_display}"
+    )
+
+
+@note_app.command("list")
+def note_list(
+    doi: Optional[str] = typer.Option(None, help="Filter notes by DOI"),
+    limit: int = typer.Option(25, help="Number of notes to show"),
+) -> None:
+    service = NoteService(get_settings())
+    notes = service.list_notes(doi=doi, limit=limit)
+    if not notes:
+        console.print("[yellow]No notes found.")
+        return
+    table = Table(title="Notes")
+    table.add_column("Created")
+    table.add_column("DOI")
+    table.add_column("Tags")
+    table.add_column("Body")
+    for entry in notes:
+        tag_text = ", ".join(entry.tags) or "—"
+        preview = (entry.body[:80] + "…") if len(entry.body) > 80 else entry.body
+        table.add_row(
+            entry.created_at.strftime("%Y-%m-%d"),
+            entry.doi,
+            tag_text,
+            preview,
+        )
+    console.print(table)
 
 
 @app.command("list")

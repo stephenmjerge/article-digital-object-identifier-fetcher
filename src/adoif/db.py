@@ -89,6 +89,14 @@ class OutcomeRecord(SQLModel, table=True):
     p_value: float | None = None
 
 
+class NoteRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    doi: str
+    body: str
+    tags_json: str = Field(default="[]")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 def create_engine_for_path(db_path: Path):
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return create_engine(

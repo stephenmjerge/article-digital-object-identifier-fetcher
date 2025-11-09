@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from adoif.services import (
     ExtractionService,
     LocalLibrary,
+    NoteService,
     PrismaSummary,
     ScreeningService,
 )
@@ -36,6 +37,9 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     def extraction() -> ExtractionService:
         return ExtractionService(settings)
+
+    def notes() -> NoteService:
+        return NoteService(settings)
 
     @app.get("/", response_class=HTMLResponse)
     async def home(request: Request) -> HTMLResponse:
@@ -171,6 +175,27 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             "insights.html",
             {"charts": chart_payload, "totals": totals},
         )
+
+    @app.get("/notes", response_class=HTMLResponse)
+    async def notes_home(request: Request) -> HTMLResponse:
+        service = notes()
+        entries = await asyncio.to_thread(service.list_notes, None, 100)
+        return templates.TemplateResponse(
+            request,
+            "notes.html",
+            {"notes": entries},
+        )
+
+    @app.post("/notes")
+    async def notes_create(
+        doi: str = Form(...),
+        body: str = Form(...),
+        tags: Optional[str] = Form(None),
+    ) -> RedirectResponse:
+        service = notes()
+        tag_list = [part.strip() for part in (tags or "").split(",") if part.strip()]
+        await asyncio.to_thread(service.add_note, doi=doi, body=body, tags=tag_list)
+        return RedirectResponse("/notes", status_code=status.HTTP_302_FOUND)
 
     return app
 

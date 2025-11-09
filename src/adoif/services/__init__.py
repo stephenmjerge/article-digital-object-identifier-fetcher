@@ -15,6 +15,7 @@ from .screening import PrismaSummary, ScreeningService
 from .extraction import ExtractionService
 from .storage import LibraryStorage, LocalLibrary
 from .verification import CrossrefVerifier, VerificationResult
+from .notes import NoteService, Note
 
 __all__ = [
     "CrossrefResolver",
@@ -41,4 +42,6 @@ __all__ = [
     "BatchScanner",
     "BatchCandidate",
     "summarize_candidates",
+    "NoteService",
+    "Note",
 ]
