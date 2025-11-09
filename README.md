@@ -59,7 +59,7 @@ Storage Layer
 | `adoif search "<query>"` | Full-text search powered by SQLite FTS5 |
 | `adoif screen start --query …` | Seed PRISMA-style screening projects with include/exclude tracking |
 | `adoif extract record --doi …` | Capture PICO data and outcome measures for included studies |
-| `adoif serve` | Launch the FastAPI dashboard (library + screening + extraction) |
+| `adoif serve` | Launch the FastAPI dashboard (library + insights + screening + extraction) |
 | `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
 | `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
 | Dashboard (planned) | HTMX UI for triage queue, tagging, notes |
@@ -80,5 +80,6 @@ Storage Layer
 ## Dashboard preview
 Run `adoif serve` and visit `http://127.0.0.1:8000` for:
 - **Library** – quick glance at the ingest queue, tagged items, and PDF coverage.
-- **Screening** – visual PRISMA counters plus per-candidate include/exclude forms.
+- **Insights** – interactive charts showing tag coverage, screening velocity, and extraction status.
+- **Screening** – PRISMA counters plus inline include/exclude forms with filters.
 - **Extraction** – read-only PICO cards with recorded outcomes.

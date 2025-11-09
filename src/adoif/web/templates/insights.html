@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <header>
+    <h1>Review Insights</h1>
+    <p class="lead">
+      A high-level view of your evidence pipeline—what's been ingested, screened, and
+      extracted so far.
+    </p>
+  </header>
+</section>
+
+<section class="grid">
+  <article class="card">
+    <div class="stat">{{ totals.library }}</div>
+    <div class="stat-label">Library Articles</div>
+  </article>
+  <article class="card">
+    <div class="stat">{{ totals.pdfs }}</div>
+    <div class="stat-label">With PDFs</div>
+  </article>
+  <article class="card">
+    <div class="stat">{{ totals.projects }}</div>
+    <div class="stat-label">Screening Projects</div>
+  </article>
+  <article class="card">
+    <div class="stat">{{ totals.extractions }}</div>
+    <div class="stat-label">Extraction Records</div>
+  </article>
+</section>
+
+<section class="grid" style="margin-top: 2rem;">
+  <article class="card">
+    <header><h3>Tag Coverage</h3></header>
+    <canvas id="tagsChart"></canvas>
+  </article>
+  <article class="card">
+    <header><h3>Screening Progress</h3></header>
+    <canvas id="screeningChart"></canvas>
+  </article>
+</section>
+
+<section class="card" style="margin-top: 2rem;">
+  <header><h3>Extraction Status</h3></header>
+  <canvas id="extractionChart"></canvas>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const tagData = {{ charts.tags | tojson }};
+  const screenData = {{ charts.screening | tojson }};
+  const extractionData = {{ charts.extractions | tojson }};
+
+  new Chart(document.getElementById("tagsChart"), {
+    type: "doughnut",
+    data: {
+      labels: tagData.labels,
+      datasets: [{ data: tagData.values, backgroundColor: tagData.colors }],
+    },
+    options: { plugins: { legend: { position: "bottom" } } },
+  });
+
+  new Chart(document.getElementById("screeningChart"), {
+    type: "bar",
+    data: {
+      labels: screenData.labels,
+      datasets: [
+        {
+          label: "Included",
+          data: screenData.included,
+          backgroundColor: "#22c55e",
+        },
+        {
+          label: "Pending",
+          data: screenData.pending,
+          backgroundColor: "#eab308",
+        },
+        {
+          label: "Excluded",
+          data: screenData.excluded,
+          backgroundColor: "#ef4444",
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+    },
+  });
+
+  new Chart(document.getElementById("extractionChart"), {
+    type: "pie",
+    data: {
+      labels: extractionData.labels,
+      datasets: [{ data: extractionData.values, backgroundColor: extractionData.colors }],
+    },
+    options: { plugins: { legend: { position: "bottom" } } },
+  });
+</script>
+{% endblock %}

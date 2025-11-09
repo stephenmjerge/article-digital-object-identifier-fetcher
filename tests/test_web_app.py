@@ -10,3 +10,11 @@ def test_dashboard_home_loads(tmp_path) -> None:
     client = TestClient(app)
     response = client.get("/")
     assert response.status_code == 200
+
+
+def test_insights_page_loads(tmp_path) -> None:
+    settings = Settings(data_dir=tmp_path)
+    app = create_app(settings)
+    client = TestClient(app)
+    response = client.get("/insights")
+    assert response.status_code == 200

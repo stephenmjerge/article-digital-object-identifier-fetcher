@@ -26,6 +26,19 @@
 </section>
 
 <section class="card" style="margin-top: 2rem;">
+  <form method="get" class="grid">
+    <label>
+      Status Filter
+      <select name="status_filter" onchange="this.form.submit()">
+        {% for option in ["all", "include", "exclude", "maybe", "unreviewed"] %}
+          <option value="{{ option }}" {% if status_filter == option %}selected{% endif %}>
+            {{ option.title() }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+
   {% if not candidates %}
     <p>No candidates yet.</p>
   {% else %}
@@ -48,7 +61,7 @@
               {% endif %}
             </td>
             <td>{{ candidate.source }}</td>
-            <td>{{ candidate.status }}</td>
+            <td><span class="pill {{ candidate.status }}">{{ candidate.status }}</span></td>
             <td>
               <form
                 method="post"
