@@ -65,6 +65,30 @@ class ScreeningCandidate(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ExtractionRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    doi: str
+    population: str | None = None
+    intervention: str | None = None
+    comparator: str | None = None
+    outcomes_summary: str | None = None
+    notes: str | None = None
+    status: str = Field(default="draft")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class OutcomeRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    extraction_id: int = Field(foreign_key="extractionrecord.id")
+    description: str
+    effect_size: float | None = None
+    effect_unit: str | None = None
+    ci_low: float | None = None
+    ci_high: float | None = None
+    p_value: float | None = None
+
+
 def create_engine_for_path(db_path: Path):
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return create_engine(

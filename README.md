@@ -58,6 +58,7 @@ Storage Layer
 | `adoif find "<query>" --sources pubmed,openalex` | Query external APIs for new literature |
 | `adoif search "<query>"` | Full-text search powered by SQLite FTS5 |
 | `adoif screen start --query …` | Seed PRISMA-style screening projects with include/exclude tracking |
+| `adoif extract record --doi …` | Capture PICO data and outcome measures for included studies |
 | `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
 | `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
 | Dashboard (planned) | HTMX UI for triage queue, tagging, notes |

@@ -11,6 +11,7 @@ from .search import (
     SearchResult,
 )
 from .screening import PrismaSummary, ScreeningService
+from .extraction import ExtractionService
 from .storage import LibraryStorage, LocalLibrary
 from .verification import CrossrefVerifier, VerificationResult
 
@@ -35,4 +36,5 @@ __all__ = [
     "PubMedSearchResolver",
     "ScreeningService",
     "PrismaSummary",
+    "ExtractionService",
 ]

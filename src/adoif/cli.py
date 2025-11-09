@@ -17,6 +17,7 @@ from adoif.models import FetchRequest, StoredArtifact
 from adoif.services import (
     CrossrefResolver,
     CrossrefVerifier,
+    ExtractionService,
     IngestError,
     IngestPipeline,
     LocalLibrary,
@@ -36,7 +37,9 @@ from adoif.settings import Settings, get_settings
 console = Console()
 app = typer.Typer(help="ADOIF – Article / DOI Fetcher")
 screen_app = typer.Typer(help="Screening workflows")
+extract_app = typer.Typer(help="PICO extraction workflows")
 app.add_typer(screen_app, name="screen")
+app.add_typer(extract_app, name="extract")
 SCREEN_LABELS = {"include", "exclude", "maybe", "unreviewed"}
 logger = structlog.get_logger(__name__)
 
@@ -477,4 +480,73 @@ def _print_prisma_summary(summary: PrismaSummary) -> None:
     table.add_row("Included", str(summary.included))
     table.add_row("Excluded", str(summary.excluded))
     table.add_row("Pending", str(summary.pending))
+    console.print(table)
+
+
+@extract_app.command("record")
+def extract_record(
+    doi: str = typer.Option(..., help="DOI to annotate"),
+    population: Optional[str] = typer.Option(None, help="Population summary"),
+    intervention: Optional[str] = typer.Option(None, help="Intervention"),
+    comparator: Optional[str] = typer.Option(None, help="Comparator"),
+    outcomes: Optional[str] = typer.Option(None, help="Outcomes summary"),
+    notes: Optional[str] = typer.Option(None, help="Additional notes"),
+    status: str = typer.Option("draft", help="draft|completed"),
+    outcome_description: Optional[str] = typer.Option(None, help="Outcome detail"),
+    effect_size: Optional[float] = typer.Option(None, help="Effect size value"),
+    effect_unit: Optional[str] = typer.Option(None, help="Effect size unit"),
+    ci_low: Optional[float] = typer.Option(None, help="Confidence interval low"),
+    ci_high: Optional[float] = typer.Option(None, help="Confidence interval high"),
+    p_value: Optional[float] = typer.Option(None, help="p-value"),
+) -> None:
+    """Create or update a PICO extraction record."""
+
+    service = ExtractionService(get_settings())
+    record = service.upsert_record(
+        doi=doi,
+        population=population,
+        intervention=intervention,
+        comparator=comparator,
+        outcomes_summary=outcomes,
+        notes=notes,
+        status=status,
+    )
+    if outcome_description:
+        service.add_outcome(
+            extraction_id=record.id,
+            description=outcome_description,
+            effect_size=effect_size,
+            effect_unit=effect_unit,
+            ci_low=ci_low,
+            ci_high=ci_high,
+            p_value=p_value,
+        )
+    console.print(f"[green]Saved extraction for {doi}[/green]")
+
+
+@extract_app.command("list")
+def extract_list(doi: Optional[str] = typer.Option(None, help="Filter by DOI")) -> None:
+    """List stored extraction records."""
+
+    service = ExtractionService(get_settings())
+    records = service.list_records(doi=doi)
+    if not records:
+        console.print("[yellow]No extraction records found.")
+        return
+    table = Table(title="Extraction Records")
+    table.add_column("ID")
+    table.add_column("DOI")
+    table.add_column("Population")
+    table.add_column("Intervention")
+    table.add_column("Comparator")
+    table.add_column("Status")
+    for record in records:
+        table.add_row(
+            str(record.id),
+            record.doi,
+            record.population or "—",
+            record.intervention or "—",
+            record.comparator or "—",
+            record.status,
+        )
     console.print(table)
