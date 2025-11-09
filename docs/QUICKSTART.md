@@ -45,7 +45,15 @@ adoif note list --doi 10.1038/s41586-020-2649-2
 ```
 Visit `http://127.0.0.1:8000/notes` to add/edit notes from the dashboard.
 
-## 5. Inspect the library
+## 5. Plan your week
+Import the class syllabus and preview what's due soon:
+```bash
+adoif schedule import data/psy305-syllabus.csv --course PSY305
+adoif schedule today --days 7
+```
+The home dashboard now shows an "Upcoming readings" table so you can screen-share your planning habits.
+
+## 6. Inspect the library
 ```bash
 adoif list
 adoif search "psych"
@@ -54,7 +62,7 @@ adoif verify --all
 ```
 These commands prove that metadata, FTS search, export, and Crossref verification all work end-to-end.
 
-## 6. Run a screening sprint
+## 7. Run a screening sprint
 1. Seed a project with PubMed + OpenAlex hits:
    ```bash
    adoif screen start --name "psych-trials" \
@@ -68,7 +76,7 @@ These commands prove that metadata, FTS search, export, and Crossref verificatio
    ```
 This gives you PRISMA-style numbers to showcase disciplined triage.
 
-## 7. Capture PICO extractions
+## 8. Capture PICO extractions
 Record structured notes for an accepted paper:
 ```bash
 adoif extract record --doi 10.1038/s41586-020-2649-2 \
@@ -78,14 +86,14 @@ adoif extract list
 ```
 Optional: append statistical outcomes with `--effect-size`, `--ci-low`, etc.
 
-## 8. Launch the dashboard
+## 9. Launch the dashboard
 Bring everything together visually:
 ```bash
 adoif serve --host 127.0.0.1 --port 8000
 ```
 Visit `http://127.0.0.1:8000` to walk reviewers through the Library, Screening, Extractions, and Insights tabs.
 
-## 9. Reset between demos
+## 10. Reset between demos
 Remove the data directory when you want a clean slate:
 ```bash
 rm -rf "$ADOIF_DATA_DIR"

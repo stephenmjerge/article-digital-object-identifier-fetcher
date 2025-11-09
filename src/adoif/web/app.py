@@ -16,6 +16,7 @@ from adoif.services import (
     LocalLibrary,
     NoteService,
     PrismaSummary,
+    ScheduleService,
     ScreeningService,
 )
 from adoif.settings import Settings, get_settings
@@ -41,16 +42,21 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     def notes() -> NoteService:
         return NoteService(settings)
 
+    def schedule_service() -> ScheduleService:
+        return ScheduleService(settings)
+
     @app.get("/", response_class=HTMLResponse)
     async def home(request: Request) -> HTMLResponse:
         storage = library()
         artifacts = await storage.list_artifacts()
+        schedule_entries = await asyncio.to_thread(schedule_service().upcoming_week)
         return templates.TemplateResponse(
             request,
             "index.html",
             {
                 "artifacts": artifacts,
                 "total": len(artifacts),
+                "schedule_items": schedule_entries,
             },
         )
 

@@ -63,6 +63,8 @@ Storage Layer
 | `adoif screen start --query …` | Seed PRISMA-style screening projects with include/exclude tracking |
 | `adoif extract record --doi …` | Capture PICO data and outcome measures for included studies |
 | `adoif note add --doi …` | Log reflections/highlights tied to each document |
+| `adoif schedule import syllabus.csv --course PSY305` | Import due dates from a course syllabus |
+| `adoif schedule today --days 7` | Show what readings are due in the next few days |
 | `adoif serve` | Launch the FastAPI dashboard (library + insights + screening + extraction) |
 | `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
 | `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
@@ -75,6 +77,7 @@ Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow 
 - ingests an article using the bundled PDF (`demo-assets/sample-article.pdf`) via `adoif add ... --pdf`
 - ingests entire syllabus folders with `adoif add-batch ./course-packs/psy305 --course PSY305`
 - captures reflections with `adoif note add --doi <doi> --text "Weekly discussion takeaways"`
+- imports weekly reading plans with `adoif schedule import data/syllabus.csv --course PSY305`
 - exercises listing, search, export, verification, screening, and extraction commands
 - ends with the FastAPI dashboard so you can screen-share the whole flow
 

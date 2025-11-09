@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import csv
+from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +31,8 @@ from adoif.services import (
     PubMedSearchResolver,
     ResolverRegistry,
     ScreeningService,
+    ScheduleService,
+    NewScheduleItem,
     SearchAggregator,
     SearchResult,
     summarize_candidates,
@@ -42,9 +46,11 @@ app = typer.Typer(help="ADOIF – Article / DOI Fetcher")
 screen_app = typer.Typer(help="Screening workflows")
 extract_app = typer.Typer(help="PICO extraction workflows")
 note_app = typer.Typer(help="Notes & reflections")
+schedule_app = typer.Typer(help="Reading schedules")
 app.add_typer(screen_app, name="screen")
 app.add_typer(extract_app, name="extract")
 app.add_typer(note_app, name="note")
+app.add_typer(schedule_app, name="schedule")
 SCREEN_LABELS = {"include", "exclude", "maybe", "unreviewed"}
 logger = structlog.get_logger(__name__)
 
@@ -278,6 +284,49 @@ def note_list(
     console.print(table)
 
 
+@schedule_app.command("import")
+def schedule_import(
+    file: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=False, readable=True),
+    course: str = typer.Option(..., help="Course tag (e.g., PSY305)"),
+) -> None:
+    """Import readings from a syllabus CSV (title, due_date, [doi])."""
+
+    items = _parse_schedule_csv(file)
+    if not items:
+        console.print("[yellow]No rows detected in the CSV.")
+        return
+    service = ScheduleService(get_settings())
+    count = service.add_items(course, items)
+    console.print(f"[green]Imported {count} readings[/green] for {course}.")
+
+
+@schedule_app.command("today")
+def schedule_today(
+    course: Optional[str] = typer.Option(None, help="Filter by course"),
+    days: int = typer.Option(0, help="Show items due within N days from today"),
+) -> None:
+    service = ScheduleService(get_settings())
+    start = date.today()
+    end = start + timedelta(days=max(days, 0))
+    entries = service.due_between(start, end, course=course)
+    if not entries:
+        console.print("[yellow]No readings due in the selected window.")
+        return
+    table = Table(title="Upcoming readings")
+    table.add_column("Due")
+    table.add_column("Course")
+    table.add_column("Title")
+    table.add_column("DOI")
+    for entry in entries:
+        table.add_row(
+            entry.due_date.strftime("%Y-%m-%d"),
+            entry.course,
+            entry.title,
+            entry.doi or "—",
+        )
+    console.print(table)
+
+
 @app.command("list")
 def list_items(
     tag: Optional[str] = typer.Option(None, help="Filter by tag"),
@@ -485,6 +534,37 @@ def _print_find_results(results: list[SearchResult]) -> None:
             entry.year or "—",
         )
     console.print(table)
+
+
+def _parse_schedule_csv(path: Path) -> list[NewScheduleItem]:
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        if not reader.fieldnames:
+            return []
+        items: list[NewScheduleItem] = []
+        for idx, row in enumerate(reader, start=1):
+            due_raw = (row.get("due_date") or row.get("date") or "").strip()
+            if not due_raw:
+                raise typer.BadParameter(
+                    "Each row must include a due_date column (YYYY-MM-DD)."
+                )
+            due_date = _parse_due_date(due_raw)
+            title = (row.get("title") or row.get("reading") or f"Reading {idx}").strip()
+            doi = (row.get("doi") or row.get("identifier") or "").strip() or None
+            items.append(NewScheduleItem(title=title or f"Reading {idx}", due_date=due_date, doi=doi))
+        return items
+
+
+def _parse_due_date(value: str) -> datetime:
+    value = value.strip()
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    raise typer.BadParameter(
+        f"Could not parse due date '{value}'. Use YYYY-MM-DD or MM/DD/YYYY."
+    )
 
 
 @screen_app.command("projects")

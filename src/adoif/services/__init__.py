@@ -16,6 +16,7 @@ from .extraction import ExtractionService
 from .storage import LibraryStorage, LocalLibrary
 from .verification import CrossrefVerifier, VerificationResult
 from .notes import NoteService, Note
+from .schedule import ScheduleService, ScheduleEntry, NewScheduleItem
 
 __all__ = [
     "CrossrefResolver",
@@ -44,4 +45,7 @@ __all__ = [
     "summarize_candidates",
     "NoteService",
     "Note",
+    "ScheduleService",
+    "ScheduleEntry",
+    "NewScheduleItem",
 ]

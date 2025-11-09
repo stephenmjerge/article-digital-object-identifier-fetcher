@@ -65,4 +65,32 @@
     </table>
   {% endif %}
 </section>
+
+<section class="card" style="margin-top: 2rem;">
+  <h3>Upcoming readings (next 7 days)</h3>
+  {% if not schedule_items %}
+    <p>No scheduled readings on deck. Import a syllabus with <code>adoif schedule import</code>.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>Due</th>
+          <th>Course</th>
+          <th>Title</th>
+          <th>DOI</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in schedule_items %}
+          <tr>
+            <td>{{ item.due_date.strftime("%Y-%m-%d") }}</td>
+            <td>{{ item.course }}</td>
+            <td>{{ item.title }}</td>
+            <td>{{ item.doi or "—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
 {% endblock %}
