@@ -550,3 +550,25 @@ def extract_list(doi: Optional[str] = typer.Option(None, help="Filter by DOI")) 
             record.status,
         )
     console.print(table)
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", help="Host interface"),
+    port: int = typer.Option(8000, help="Port to bind"),
+    reload: bool = typer.Option(False, help="Enable auto-reload"),
+) -> None:
+    """Launch the FastAPI dashboard."""
+    try:
+        import uvicorn
+    except ImportError as exc:  # pragma: no cover
+        console.print("[red]FastAPI dependencies not installed.[/red]")
+        raise typer.Exit(code=1) from exc
+
+    uvicorn.run(
+        "adoif.web.app:create_app",
+        host=host,
+        port=port,
+        reload=reload,
+        factory=True,
+    )

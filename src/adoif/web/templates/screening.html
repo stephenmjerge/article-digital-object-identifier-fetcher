@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <header>
+    <h1>Screening Projects</h1>
+    <p class="lead">
+      PRISMA-style include/exclude flows. Start new projects via
+      <code>adoif screen start</code>, then label candidates here.
+    </p>
+  </header>
+</section>
+
+{% if not projects %}
+  <p>No projects yet. Use the CLI to seed candidates.</p>
+{% else %}
+  <div class="grid">
+    {% for project in projects %}
+      {% set summary = summaries.get(project.id) %}
+      <article class="card">
+        <header>
+          <h3>{{ project.name }}</h3>
+          <small>{{ project.query }}</small>
+        </header>
+        <p class="stat">{{ summary.total if summary else "?" }}</p>
+        <p class="stat-label">Total candidates</p>
+        <ul>
+          <li>Included: {{ summary.included }}</li>
+          <li>Excluded: {{ summary.excluded }}</li>
+          <li>Pending: {{ summary.pending }}</li>
+        </ul>
+        <a role="button" href="/screening/{{ project.id }}">Open project</a>
+      </article>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

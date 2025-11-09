@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <header>
+    <h1>Research Library</h1>
+    <p class="lead">
+      {{ total }} curated articles ready for rapid recall. Use the CLI to ingest new
+      references, then explore and triage them here.
+    </p>
+  </header>
+</section>
+
+<section class="grid">
+  <article class="card">
+    <div class="stat">{{ total }}</div>
+    <div class="stat-label">Total Articles</div>
+  </article>
+  <article class="card">
+    <div class="stat">
+      {{ artifacts | selectattr("pdf_path") | list | length }}
+    </div>
+    <div class="stat-label">With PDFs</div>
+  </article>
+  <article class="card">
+    <div class="stat">
+      {{ artifacts | rejectattr("metadata.tags", "equalto", []) | list | length }}
+    </div>
+    <div class="stat-label">Tagged Entries</div>
+  </article>
+</section>
+
+<section class="card" style="margin-top: 2rem;">
+  <h3>Latest additions</h3>
+  {% if not artifacts %}
+    <p>No artifacts yet. Use <code>adoif add &lt;doi&gt;</code>.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Journal</th>
+          <th>Tags</th>
+          <th>PDF</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for artifact in artifacts[:8] %}
+          <tr>
+            <td>
+              <strong>{{ artifact.metadata.title }}</strong><br />
+              <small>{{ artifact.metadata.doi }}</small>
+            </td>
+            <td>{{ artifact.metadata.journal or "—" }}</td>
+            <td>
+              {% if artifact.metadata.tags %}
+                {{ artifact.metadata.tags | join(", ") }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ "Yes" if artifact.pdf_path else "No" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+{% endblock %}

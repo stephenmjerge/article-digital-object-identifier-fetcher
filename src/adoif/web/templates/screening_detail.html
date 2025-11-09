@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <header>
+    <h1>{{ project.name }}</h1>
+    <p class="lead">
+      {{ project.query }} • Sources: {{ project.sources }} • Created
+      {{ project.created_at.strftime("%Y-%m-%d") }}
+    </p>
+  </header>
+</section>
+
+<section class="grid">
+  <article class="card">
+    <div class="stat">{{ summary.total }}</div>
+    <div class="stat-label">Total</div>
+  </article>
+  <article class="card">
+    <div class="stat">{{ summary.included }}</div>
+    <div class="stat-label">Included</div>
+  </article>
+  <article class="card">
+    <div class="stat">{{ summary.pending }}</div>
+    <div class="stat-label">Pending</div>
+  </article>
+</section>
+
+<section class="card" style="margin-top: 2rem;">
+  {% if not candidates %}
+    <p>No candidates yet.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Label</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for candidate in candidates %}
+          <tr>
+            <td>
+              <strong>{{ candidate.title }}</strong><br />
+              {% if candidate.url %}
+                <a href="{{ candidate.url }}" target="_blank">Link</a>
+              {% endif %}
+            </td>
+            <td>{{ candidate.source }}</td>
+            <td>{{ candidate.status }}</td>
+            <td>
+              <form
+                method="post"
+                action="/screening/{{ project.id }}/label/{{ candidate.id }}"
+              >
+                <select name="label">
+                  {% for label in ["include", "exclude", "maybe"] %}
+                    <option value="{{ label }}" {% if candidate.status == label %}selected{% endif %}>
+                      {{ label.title() }}
+                    </option>
+                  {% endfor %}
+                </select>
+                <input
+                  type="text"
+                  name="reason"
+                  placeholder="Reason"
+                  value="{{ candidate.reason or '' }}"
+                />
+                <button type="submit">Save</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+{% endblock %}

@@ -59,6 +59,7 @@ Storage Layer
 | `adoif search "<query>"` | Full-text search powered by SQLite FTS5 |
 | `adoif screen start --query …` | Seed PRISMA-style screening projects with include/exclude tracking |
 | `adoif extract record --doi …` | Capture PICO data and outcome measures for included studies |
+| `adoif serve` | Launch the FastAPI dashboard (library + screening + extraction) |
 | `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
 | `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
 | Dashboard (planned) | HTMX UI for triage queue, tagging, notes |
@@ -75,3 +76,9 @@ Storage Layer
 2. Flesh out metadata models + storage interfaces.
 3. Build CLI skeleton with dependency injection for resolvers and storage.
 4. Stub FastAPI service for future dashboard.
+
+## Dashboard preview
+Run `adoif serve` and visit `http://127.0.0.1:8000` for:
+- **Library** – quick glance at the ingest queue, tagged items, and PDF coverage.
+- **Screening** – visual PRISMA counters plus per-candidate include/exclude forms.
+- **Extraction** – read-only PICO cards with recorded outcomes.

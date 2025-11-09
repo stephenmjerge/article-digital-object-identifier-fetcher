@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or "ADOIF Dashboard" }}</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css"
+    />
+    <style>
+      body {
+        background: #f8fafc;
+      }
+      nav a {
+        color: inherit;
+      }
+      .card {
+        padding: 1.25rem;
+        border-radius: 12px;
+        background: white;
+        box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08);
+      }
+      .stat {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      .stat-label {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.8rem;
+        color: #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="container-fluid">
+      <ul>
+        <li><strong>ADOIF</strong></li>
+      </ul>
+      <ul>
+        <li><a href="/">Library</a></li>
+        <li><a href="/screening">Screening</a></li>
+        <li><a href="/extractions">Extract</a></li>
+      </ul>
+    </nav>
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

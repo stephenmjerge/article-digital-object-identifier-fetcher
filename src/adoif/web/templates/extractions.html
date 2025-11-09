@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <header>
+    <h1>PICO Extraction</h1>
+    <p class="lead">
+      Structured summaries for included studies. Use the CLI to add or update entries,
+      then review outcomes here.
+    </p>
+  </header>
+</section>
+
+{% if not records %}
+  <p>No extraction records yet.</p>
+{% else %}
+  <div class="grid">
+    {% for record, outcomes in records %}
+      <article class="card">
+        <header>
+          <strong>{{ record.doi }}</strong>
+          <p>Status: {{ record.status }}</p>
+        </header>
+        <ul>
+          <li><strong>Population:</strong> {{ record.population or "—" }}</li>
+          <li><strong>Intervention:</strong> {{ record.intervention or "—" }}</li>
+          <li><strong>Comparator:</strong> {{ record.comparator or "—" }}</li>
+          <li><strong>Summary:</strong> {{ record.outcomes_summary or "—" }}</li>
+        </ul>
+        {% if outcomes %}
+          <details>
+            <summary>Outcomes ({{ outcomes | length }})</summary>
+            <ul>
+              {% for outcome in outcomes %}
+                <li>
+                  {{ outcome.description }} –
+                  {% if outcome.effect_size %}
+                    {{ outcome.effect_size }} {{ outcome.effect_unit or "" }}
+                  {% else %}
+                    effect n/a
+                  {% endif %}
+                  {% if outcome.ci_low and outcome.ci_high %}
+                    ({{ outcome.ci_low }} – {{ outcome.ci_high }})
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </details>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}
