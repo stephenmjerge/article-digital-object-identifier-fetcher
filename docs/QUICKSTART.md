@@ -86,14 +86,21 @@ adoif extract list
 ```
 Optional: append statistical outcomes with `--effect-size`, `--ci-low`, etc.
 
-## 9. Launch the dashboard
+## 9. Generate an admissions-ready report
+Collect everything into Markdown for your application:
+```bash
+adoif demo-report --output admissions-report.md
+```
+Open the file, drop in screenshots, and include it in your portfolio.
+
+## 10. Launch the dashboard
 Bring everything together visually:
 ```bash
 adoif serve --host 127.0.0.1 --port 8000
 ```
 Visit `http://127.0.0.1:8000` to walk reviewers through the Library, Screening, Extractions, and Insights tabs.
 
-## 10. Reset between demos
+## 11. Reset between demos
 Remove the data directory when you want a clean slate:
 ```bash
 rm -rf "$ADOIF_DATA_DIR"

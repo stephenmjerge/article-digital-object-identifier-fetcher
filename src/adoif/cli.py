@@ -16,6 +16,7 @@ from rich.table import Table
 
 from adoif import exporters
 from adoif.models import FetchRequest, StoredArtifact
+from adoif.reporting import ReportData, ScreeningSnapshot, build_demo_report
 from adoif.services import (
     BatchScanner,
     CrossrefResolver,
@@ -325,6 +326,57 @@ def schedule_today(
             entry.doi or "—",
         )
     console.print(table)
+
+
+@app.command("demo-report")
+def demo_report(
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write report to a file"),
+    note_limit: int = typer.Option(5, help="Number of notes to include"),
+) -> None:
+    """Generate a Markdown snapshot for admissions reviewers."""
+
+    async def runner() -> str:
+        settings = get_settings()
+        storage = LocalLibrary(settings)
+        artifacts = await storage.list_artifacts()
+
+        note_service = NoteService(settings)
+        notes = note_service.list_notes(limit=note_limit)
+
+        schedule_entries = ScheduleService(settings).upcoming_week()
+
+        extract_service = ExtractionService(settings)
+        extractions = await asyncio.to_thread(extract_service.list_records)
+
+        screen_service = ScreeningService(settings)
+        projects = await asyncio.to_thread(screen_service.list_projects)
+        screening_snapshots: list[ScreeningSnapshot] = []
+        for project in projects:
+            summary = await asyncio.to_thread(screen_service.prisma_summary, project.id)
+            screening_snapshots.append(
+                ScreeningSnapshot(
+                    name=project.name,
+                    included=summary.included,
+                    excluded=summary.excluded,
+                    pending=summary.pending,
+                )
+            )
+
+        report_data = ReportData(
+            artifacts=artifacts,
+            screening=screening_snapshots,
+            extractions=extractions,
+            notes=notes,
+            schedule=schedule_entries,
+        )
+        return build_demo_report(report_data)
+
+    content = asyncio.run(runner())
+    if output:
+        output.write_text(content)
+        console.print(f"[green]Wrote report to {output}")
+    else:
+        console.print(content)
 
 
 @app.command("list")
