@@ -1,6 +1,12 @@
 # Article DOI Fetcher (ADOIF)
 
+> **Research-use only:** ADOIF is a lab-grade literature assistant. Keep it for syllabi, journal clubs, and admissions portfolios—not for clinical decision making or PHI storage unless your workflow is IRB-approved and audited.
+
 ADOIF is a local-first research assistant that keeps decades of medical literature organized. It resolves DOIs and keywords into rich metadata, downloads open-access PDFs, extracts and enriches content, and indexes everything for fast recall during undergrad, medical school, and residency.
+
+### Visual snapshot
+
+Record a short capture of `adoif add`, `adoif demo-report`, and the `adoif serve` dashboard, then store it under `docs/` for portfolio use (e.g., `docs/adoif-demo.gif`).
 
 ## Why it matters
 - **Continuity of evidence** – build a longitudinal library that follows you from pre-med through fellowship.
@@ -46,31 +52,49 @@ Storage Layer
 - **Semantic search (planned)**: `chromadb`/`llama-index`
 - **Background jobs (planned)**: lightweight queue with `arq` or `rq`
 
-### Environment
-| Variable | Purpose |
-| --- | --- |
-| `ADOIF_DATA_DIR` | Optional override for the library root (default `~/adoif-library`) |
-| `ADOIF_UNPAYWALL_EMAIL` | Required for the PDF downloader (Unpaywall rate-limits via email) |
+## Setup
 
-## Key workflows
-| Workflow | Description |
-| --- | --- |
-| `adoif add <doi|query>` | Resolve metadata, fetch PDF, and persist with SHA256-tracked PDFs |
-| `adoif add-batch path/to/course-pack` | Scan a folder of PDFs, derive titles, and ingest them with course tags |
-| `adoif list --tag psych --missing-pdf` | Inspect the local library with filters |
-| `adoif find "<query>" --sources pubmed,openalex` | Query external APIs for new literature |
-| `adoif search "<query>"` | Full-text search powered by SQLite FTS5 |
-| `adoif config --json` | Print resolved settings as machine-readable JSON (for scripts/tests) |
-| `adoif screen start --query …` | Seed PRISMA-style screening projects with include/exclude tracking |
-| `adoif extract record --doi …` | Capture PICO data and outcome measures for included studies |
-| `adoif note add --doi …` | Log reflections/highlights tied to each document |
-| `adoif schedule import syllabus.csv --course PSY305` | Import due dates from a course syllabus |
-| `adoif schedule today --days 7` | Show what readings are due in the next few days |
-| `adoif demo-report --output report.md` | Generate an admissions-ready Markdown recap |
-| `adoif serve` | Launch the FastAPI dashboard (library + insights + screening + extraction) |
-| `adoif export --format bibtex --tag psych` | Instant citations for papers and notes |
-| `adoif verify --all` | Flag retracted/updated DOIs using Crossref relation data |
-| `adoif serve` dashboard | HTMX UI for triage queue, tagging, notes |
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+### Environment variables
+
+| Variable | Purpose | Example |
+| --- | --- | --- |
+| `ADOIF_DATA_DIR` | Override the library root (defaults to `~/adoif-library`) | `export ADOIF_DATA_DIR=$PWD/.adoif-data` |
+| `ADOIF_UNPAYWALL_EMAIL` | Required by Unpaywall for polite PDF fetching | `export ADOIF_UNPAYWALL_EMAIL=you@example.edu` |
+| `ADOIF_DB_FILENAME` *(optional)* | Change the SQLite filename | `export ADOIF_DB_FILENAME=library.sqlite3` |
+
+### Smoke test
+
+```bash
+adoif init --library-dir .adoif-demo
+adoif add 10.1038/s41591-021-01627-4 --tag psych --dry-run
+adoif config --json
+```
+
+Use `python -m adoif.cli ...` if the console entry point is unavailable.
+
+## CLI cheatsheet
+
+| Command | Purpose | Example |
+| --- | --- | --- |
+| `adoif add <doi|query>` | Resolve metadata, fetch/attach PDFs, persist to library | `adoif add 10.1038/s41591-021-01627-4 --tag psych --pdf demo-assets/sample-article.pdf` |
+| `adoif add-batch <dir>` | Ingest all PDFs in a syllabus/course pack | `adoif add-batch course-packs/psy305 --course PSY305 --tag midterm` |
+| `adoif list --filters` | Inspect local holdings with tag/status filters | `adoif list --tag psych --missing-pdf` |
+| `adoif find` / `adoif search` | Query PubMed/OpenAlex or local FTS index | `adoif find "ketamine depression" --sources pubmed,openalex` |
+| `adoif config --json` | Print resolved settings for scripts/tests | `adoif config --json` |
+| `adoif screen …` | Manage PRISMA-style screening queue | `adoif screen start --query "psychology residency"` |
+| `adoif extract …` | Capture PICO-style notes per DOI | `adoif extract record --doi 10.1001/jama.2019.0018` |
+| `adoif schedule …` | Import due dates or list upcoming readings | `adoif schedule import data/syllabus.csv --course PSY305` |
+| `adoif note add` | Attach reflections/highlights | `adoif note add --doi 10.1038/... --text "Journal club takeaways"` |
+| `adoif demo-report` | Generate a Markdown admissions summary | `adoif demo-report --output portfolio.md` |
+| `adoif export --format bibtex` | Export citations by tag | `adoif export --format bibtex --tag psych` |
+| `adoif verify --all` | Flag retracted/updated DOIs | `adoif verify --all` |
+| `adoif serve` | Launch the local HTMX dashboard | `adoif serve --host 127.0.0.1 --port 8000` |
 
 ## Quickstart demo
 Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow `docs/QUICKSTART.md` for a guided walkthrough that:
