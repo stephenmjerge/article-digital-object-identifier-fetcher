@@ -60,6 +60,7 @@ Storage Layer
 | `adoif list --tag psych --missing-pdf` | Inspect the local library with filters |
 | `adoif find "<query>" --sources pubmed,openalex` | Query external APIs for new literature |
 | `adoif search "<query>"` | Full-text search powered by SQLite FTS5 |
+| `adoif config --json` | Print resolved settings as machine-readable JSON (for scripts/tests) |
 | `adoif screen start --query …` | Seed PRISMA-style screening projects with include/exclude tracking |
 | `adoif extract record --doi …` | Capture PICO data and outcome measures for included studies |
 | `adoif note add --doi …` | Log reflections/highlights tied to each document |

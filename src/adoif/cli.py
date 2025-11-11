@@ -134,9 +134,14 @@ def _write_env_var(key: str, value: str) -> None:
 
 
 @app.command()
-def config() -> None:
+def config(
+    json_output: bool = typer.Option(False, "--json", help="Output settings as JSON"),
+) -> None:
     """Display the resolved settings."""
     settings = get_settings()
+    if json_output:
+        typer.echo(settings.model_dump_json(indent=2))
+        return
     table = Table(title="ADOIF Settings")
     table.add_column("Key")
     table.add_column("Value", overflow="fold")
