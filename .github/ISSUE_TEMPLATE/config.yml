@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/stephenmjerge/article-digital-object-identifier-fetcher/tree/main/docs
+    about: Review quickstarts and demos before filing.
+  - name: 🆘 Security / privacy inquiries
+    url: mailto:stephenmjergedev@gmail.com
+    about: Use email for sensitive DOI data or vulnerability disclosures.
