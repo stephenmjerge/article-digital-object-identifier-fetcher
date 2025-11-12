@@ -2,16 +2,16 @@
 
 > **Research-use only:** ADOIF is a lab-grade literature assistant. Keep it for syllabi, journal clubs, and admissions portfolios—not for clinical decision making or PHI storage unless your workflow is IRB-approved and audited.
 
-ADOIF is a local-first research assistant that keeps decades of medical literature organized. It resolves DOIs and keywords into rich metadata, downloads open-access PDFs, extracts and enriches content, and indexes everything for fast recall during undergrad, medical school, and residency.
+ADOIF is a local-first research assistant that keeps longitudinal clinical-research libraries organized. It resolves DOIs and keywords into rich metadata, downloads open-access PDFs, extracts and enriches content, and indexes everything for fast recall during lab rotations, practicum work, and translational collaborations.
 
 ### Visual snapshot
 
 Record a short capture of `adoif add`, `adoif demo-report`, and the `adoif serve` dashboard, then store it under `docs/` for portfolio use (e.g., `docs/adoif-demo.gif`).
 
 ## Why it matters
-- **Continuity of evidence** – build a longitudinal library that follows you from pre-med through fellowship.
-- **Time savings** – one command ingests syllabi, PubMed alerts, or journal club packets.
-- **Credibility** – reproducible logs, provenance tracking, and privacy-respecting storage highlight disciplined research habits for admissions committees.
+- **Continuity of evidence** – build a longitudinal library that follows trainees across lab assignments, externships, and applied research rotations.
+- **Time savings** – one command ingests syllabi, PubMed alerts, or journal club packets into the same reproducible structure.
+- **Credibility** – reproducible logs, provenance tracking, and privacy-respecting storage highlight disciplined research habits when sharing work with supervisors or admissions committees.
 
 ## Guiding goals
 1. Local-first with optional cloud sync so notes stay private.
