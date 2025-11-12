@@ -110,6 +110,15 @@ Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow 
 
 Because `adoif add` now accepts `--pdf /path/to/local.pdf`, you can attach syllabi or lecture PDFs even when Unpaywall access is unavailable—perfect for offline demos.
 
+## Development workflow
+
+```bash
+pip install -e .[dev]
+./scripts/run-tests.sh -q
+```
+
+The helper script keeps pytest’s cache enabled for faster local runs and only appends `-p no:cacheprovider` when the filesystem rejects `.pytest_cache/` (e.g., sandboxed runners). CI (`.github/workflows/ci.yml`) already runs `pytest -q` on Python 3.11 and 3.12 so PRs inherit the same behavior.
+
 ## Roadmap
 1. **Evidence notebooks & highlights**: capture reflections/notes per DOI from the CLI/dashboard.
 2. **Admissions-ready report**: generate a Markdown/HTML portfolio summarizing ingest history, screening stats, and extraction progress.

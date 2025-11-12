@@ -67,5 +67,5 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-addopts = "-p no:cacheprovider -ra -q"
+addopts = "-ra -q"
 asyncio_mode = "strict"
