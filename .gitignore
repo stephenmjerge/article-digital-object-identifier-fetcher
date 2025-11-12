@@ -9,6 +9,7 @@ __pycache__/
 env/
 venv/
 .adoif-data/
+.cache/
 
 # Tooling
 .mypy_cache/
