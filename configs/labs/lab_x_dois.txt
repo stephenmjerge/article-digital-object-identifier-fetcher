@@ -1,3 +1,8 @@
 # Sample DOIs for Lab X literature export
 10.1038/s41591-021-01627-4
 10.1001/jama.2019.0018
+10.1177/0956797617709813
+10.1016/j.biopsych.2020.06.015
+10.7326/M19-2168
+10.31234/osf.io/abcd1
+10.1371/journal.pmed.1003582
