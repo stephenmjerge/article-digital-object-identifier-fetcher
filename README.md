@@ -93,6 +93,7 @@ Use `python -m adoif.cli ...` if the console entry point is unavailable.
 | `adoif note add` | Attach reflections/highlights | `adoif note add --doi 10.1038/... --text "Journal club takeaways"` |
 | `adoif demo-report` | Generate a Markdown admissions summary | `adoif demo-report --output portfolio.md` |
 | `adoif export --format bibtex` | Export citations by tag | `adoif export --format bibtex --tag psych` |
+| `adoif export-lab lab_x --format csv` | Export DOIs tagged `lab:lab_x` or listed via `--dois-file` | `adoif export-lab lab_x --dois-file configs/labs/lab_x_dois.txt -o lab-x.csv` |
 | `adoif verify --all` | Flag retracted/updated DOIs | `adoif verify --all` |
 | `adoif serve` | Launch the local HTMX dashboard | `adoif serve --host 127.0.0.1 --port 8000` |
 
@@ -109,6 +110,18 @@ Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow 
 - ends with the FastAPI dashboard so you can screen-share the whole flow
 
 Because `adoif add` now accepts `--pdf /path/to/local.pdf`, you can attach syllabi or lecture PDFs even when Unpaywall access is unavailable—perfect for offline demos.
+
+### PI-specific exports
+Keep PI or lab-specific reading lists by tagging artifacts with `lab:<identifier>` (e.g., `lab:lab_x`) or by storing DOI lists under `configs/labs/`.
+
+```
+adoif export-lab lab_x --format csv \
+  --dois-file configs/labs/lab_x_dois.txt \
+  --output exports/lab-x-literature.csv
+```
+
+The command looks for tags matching `lab:lab_x` when `--dois-file` is omitted. Use the sample
+`configs/labs/lab_x_dois.txt` as a template for building PI-specific exports you can hand to mentors or admissions committees.
 
 ## Development workflow
 

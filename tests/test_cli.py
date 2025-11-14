@@ -23,3 +23,18 @@ def test_config_json_flag(tmp_path, monkeypatch):
     assert Path(payload["data_dir"]) == data_dir
     assert payload["db_filename"] == "test.sqlite3"
     assert payload["log_level"] == "DEBUG"
+
+
+def test_export_lab_handles_empty_library(tmp_path, monkeypatch):
+    data_dir = tmp_path / "adoif-data"
+    monkeypatch.setenv("ADOIF_DATA_DIR", str(data_dir))
+
+    destination = tmp_path / "lab.csv"
+    result = runner.invoke(
+        cli.app,
+        ["export-lab", "lab_x", "--format", "csv", "--output", str(destination)],
+    )
+
+    assert result.exit_code == 0
+    assert "No artifacts matched the Lab export criteria" in result.stdout
+    assert not destination.exists()

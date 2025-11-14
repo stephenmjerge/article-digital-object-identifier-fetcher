@@ -1,0 +1,3 @@
+# Sample DOIs for Lab X literature export
+10.1038/s41591-021-01627-4
+10.1001/jama.2019.0018

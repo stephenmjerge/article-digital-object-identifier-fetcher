@@ -5,7 +5,7 @@ Literature ingestion → structured summaries → PI-specific literature maps.
 
 ## Phase 1 (Nov 2025 – Apr 2026)
 - Implement metadata pipeline.
-- Create PI-specific literature maps.
+- Create PI-specific literature maps. *(Lab-specific export command landed Nov 14, 2025.)*
 - Write Substack summary.
 - Create short demo video.
 - Tag v0.5 release.

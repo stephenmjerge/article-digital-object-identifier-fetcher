@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import csv
 from datetime import datetime, date, timedelta
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -456,6 +457,51 @@ def export(
     asyncio.run(runner())
 
 
+@app.command("export-lab")
+def export_lab(
+    lab: str = typer.Argument(..., help="Lab identifier (e.g., lab_x)"),
+    format: str = typer.Option("csv", "--format", "-f", help="csv or json", case_sensitive=False),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write to file"),
+    dois_file: Optional[Path] = typer.Option(None, help="Optional newline-separated DOI list to filter"),
+) -> None:
+    """Export Lab-specific citations as CSV or JSON."""
+
+    fmt = format.lower()
+    if fmt not in {"csv", "json"}:
+        raise typer.BadParameter("Format must be 'csv' or 'json'.")
+
+    doi_targets: set[str] | None = None
+    if dois_file:
+        doi_path = dois_file.expanduser()
+        if not doi_path.exists():
+            raise typer.BadParameter(f"DOI list not found: {dois_file}")
+        doi_targets = _load_doi_targets(doi_path)
+        if not doi_targets:
+            raise typer.BadParameter(f"No DOIs found in {dois_file}")
+
+    async def runner() -> None:
+        settings = get_settings()
+        storage = LocalLibrary(settings)
+        items = await storage.list_artifacts()
+        filtered = _filter_lab_artifacts(items, lab, doi_targets)
+        if not filtered:
+            console.print("[yellow]No artifacts matched the Lab export criteria.")
+            return
+        rows = _build_lab_export_rows(filtered)
+        destination = output or Path(f"lab-{lab.lower()}-export.{fmt}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if fmt == "csv":
+            with destination.open("w", newline="", encoding="utf-8") as fh:
+                writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+                writer.writeheader()
+                writer.writerows(rows)
+        else:
+            destination.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+        console.print(f"[green]Wrote {len(rows)} artifacts to {destination}")
+
+    asyncio.run(runner())
+
+
 @app.command()
 def verify(
     doi: Optional[str] = typer.Option(None, help="Single DOI to verify"),
@@ -502,6 +548,42 @@ def _render_verification_table(results: list[VerificationResult]) -> None:
         }.get(result.status, "green")
         table.add_row(result.doi, f"[{status_color}]{result.status}[/{status_color}]", notes)
     console.print(table)
+
+
+def _load_doi_targets(path: Path) -> set[str]:
+    targets: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        value = line.strip()
+        if not value or value.startswith("#"):
+            continue
+        targets.add(value.lower())
+    return targets
+
+
+def _filter_lab_artifacts(
+    artifacts: list[StoredArtifact], lab: str, doi_targets: set[str] | None
+) -> list[StoredArtifact]:
+    if doi_targets:
+        return [artifact for artifact in artifacts if artifact.metadata.doi and artifact.metadata.doi.lower() in doi_targets]
+    lab_tag = f"lab:{lab.lower()}"
+    return [artifact for artifact in artifacts if lab_tag in artifact.metadata.tags]
+
+
+def _build_lab_export_rows(artifacts: list[StoredArtifact]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for artifact in artifacts:
+        metadata = artifact.metadata
+        rows.append(
+            {
+                "doi": metadata.doi or "",
+                "title": metadata.title or "",
+                "journal": metadata.journal or "",
+                "year": str(metadata.year) if metadata.year else "",
+                "tags": ", ".join(metadata.tags) if metadata.tags else "",
+                "pdf_path": str(artifact.pdf_path) if artifact.pdf_path else "",
+            }
+        )
+    return rows
 
 
 @app.command()
