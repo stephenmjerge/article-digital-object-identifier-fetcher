@@ -1,4 +1,4 @@
-# Article DOI Fetcher (ADOIF)
+# ADOIF — Article / DOI Fetcher
 
 > **Research-use only:** ADOIF is a lab-grade literature assistant. Keep it for syllabi, journal clubs, and admissions portfolios—not for clinical decision making or PHI storage unless your workflow is IRB-approved and audited.
 
