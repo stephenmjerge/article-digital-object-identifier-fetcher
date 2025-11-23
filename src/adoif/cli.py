@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import sys
 from datetime import datetime, date, timedelta
 import json
 from pathlib import Path
@@ -42,6 +43,7 @@ from adoif.services import (
 )
 from adoif.services.verification import VerificationResult
 from adoif.settings import Settings, get_settings
+from adoif.utils import slugify
 
 console = Console()
 app = typer.Typer(help="ADOIF – Article / DOI Fetcher")
@@ -64,7 +66,7 @@ async def _handle_add(
     tags: tuple[str, ...],
     dry_run: bool,
     pdf_path: Optional[Path],
-) -> None:
+) -> Optional[StoredArtifact]:
     settings = get_settings()
     storage = LocalLibrary(settings)
     request = FetchRequest(identifier=identifier)
@@ -86,7 +88,7 @@ async def _handle_add(
     if dry_run:
         console.print("[yellow]Dry run – not persisting metadata or PDFs.")
         _print_metadata(artifact)
-        return
+        return artifact
 
     action = "Stored" if outcome.created else "Updated"
     message = f"[green]{action}[/green]: {artifact.metadata.title}"
@@ -96,6 +98,7 @@ async def _handle_add(
     elif settings.unpaywall_email is None:
         message += " [yellow](No PDF – set ADOIF_UNPAYWALL_EMAIL)[/yellow]"
     console.print(message)
+    return artifact
 
 
 def _print_metadata(artifact: StoredArtifact) -> None:
@@ -111,6 +114,23 @@ def _print_metadata(artifact: StoredArtifact) -> None:
     )
     table.add_row("Tags", ", ".join(artifact.metadata.tags) or "—")
     console.print(table)
+
+
+def _write_html_report(artifact: StoredArtifact, output_path: Path) -> None:
+    output_dir = output_path if output_path.suffix == "" else output_path.parent
+    output_file = output_path if output_path.suffix else output_dir / "report.html"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    html_lines = [
+        "<html><head><title>ADOIF Report</title></head><body>",
+        "<h1>ADOIF Artifact</h1>",
+        f"<p><strong>Title:</strong> {artifact.metadata.title}</p>",
+        f"<p><strong>DOI:</strong> {artifact.metadata.doi}</p>",
+        f"<p><strong>Journal:</strong> {artifact.metadata.journal or '—'}</p>",
+        f"<p><strong>Authors:</strong> {', '.join(a.full_name for a in artifact.metadata.authors) or '—'}</p>",
+        f"<p><strong>Tags:</strong> {', '.join(artifact.metadata.tags) or '—'}</p>",
+        "</body></html>",
+    ]
+    output_file.write_text("\n".join(html_lines), encoding="utf-8")
 
 
 @app.command()
@@ -175,10 +195,15 @@ def add(
                 raise typer.BadParameter("PDF path must point to a file.")
             pdf_path = pdf
         try:
-            await _handle_add(identifier, title, journal, tuple(tag or []), dry_run, pdf_path)
+            artifact = await _handle_add(identifier, title, journal, tuple(tag or []), dry_run, pdf_path)
         except IngestError as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=1) from exc
+        if not dry_run and artifact:
+            report_dir = Path("outputs") / "reports"
+            report_dir.mkdir(parents=True, exist_ok=True)
+            name = slugify(identifier)
+            _write_html_report(artifact, report_dir / f"{name}.html")
 
     asyncio.run(runner())
 
@@ -500,6 +525,105 @@ def export_lab(
         console.print(f"[green]Wrote {len(rows)} artifacts to {destination}")
 
     asyncio.run(runner())
+
+
+@app.command()
+def doctor(
+    input_csv: Optional[Path] = typer.Option(None, "--input", help="Optional input list to validate"),
+) -> None:
+    """Environment checks (Python, deps, data directory)."""
+    checks: list[tuple[str, bool, str]] = []
+    checks.append(("python>=3.11", sys.version_info >= (3, 11), sys.version))
+    for mod in ("httpx", "sqlmodel", "structlog"):
+        try:
+            module = __import__(mod)
+            ver = getattr(module, "__version__", "unknown")
+            checks.append((f"{mod} import", True, ver))
+        except Exception as exc:  # pragma: no cover
+            checks.append((f"{mod} import", False, str(exc)))
+    settings = get_settings()
+    data_dir = settings.data_dir
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        test = data_dir / ".adoif_doctor"
+        test.write_text("ok", encoding="utf-8")
+        test.unlink()
+        checks.append(("data_dir writable", True, str(data_dir)))
+    except Exception as exc:  # pragma: no cover
+        checks.append(("data_dir writable", False, str(exc)))
+    if input_csv:
+        checks.append(("input exists", input_csv.exists(), str(input_csv)))
+
+    passed = True
+    for name, ok, note in checks:
+        status = "[green]OK[/green]" if ok else "[red]FAIL[/red]"
+        console.print(f"{status} {name} ({note})")
+        passed = passed and ok
+    if not passed:
+        raise typer.Exit(code=1)
+    console.print("[green]Doctor checks passed.[/green]")
+
+
+@app.command()
+def demo(outdir: Optional[Path] = typer.Option(None, "--outdir", help="Demo output directory")) -> None:
+    """Generate a small synthetic library (metadata, CSV, HTML report)."""
+    base = outdir or Path("outputs") / f"adoif_demo_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}"
+    base.mkdir(parents=True, exist_ok=True)
+    sample = [
+        {
+            "doi": "10.1038/s41591-021-01627-4",
+            "title": "Ketamine for treatment-resistant depression",
+            "journal": "Nature Medicine",
+            "authors": ["Smith, A.", "Lee, J."],
+            "tags": ["psych", "ketamine"],
+        },
+        {
+            "doi": "10.1001/jama.2019.0018",
+            "title": "Digital mental health interventions",
+            "journal": "JAMA",
+            "authors": ["Garcia, M.", "Nguyen, P."],
+            "tags": ["digital", "psych"],
+        },
+    ]
+    csv_path = base / "metadata.csv"
+    with csv_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=["doi", "title", "journal", "authors", "tags"])
+        writer.writeheader()
+        for row in sample:
+            writer.writerow({
+                "doi": row["doi"],
+                "title": row["title"],
+                "journal": row["journal"],
+                "authors": "; ".join(row["authors"]),
+                "tags": ", ".join(row["tags"]),
+            })
+    json_path = base / "metadata.json"
+    json_path.write_text(json.dumps(sample, indent=2), encoding="utf-8")
+
+    # Build a simple HTML report
+    html_lines = [
+        "<html><head><title>ADOIF Demo</title></head><body>",
+        "<h1>ADOIF Demo Library</h1>",
+        "<ul>",
+    ]
+    for row in sample:
+        html_lines.append(
+            f"<li><strong>{row['title']}</strong> ({row['journal']}) — {row['doi']} — tags: {', '.join(row['tags'])}</li>"
+        )
+    html_lines.append("</ul></body></html>")
+    (base / "report.html").write_text("\n".join(html_lines), encoding="utf-8")
+
+    manifest = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "count": len(sample),
+        "paths": {
+            "metadata_csv": str(csv_path),
+            "metadata_json": str(json_path),
+            "report_html": str(base / "report.html"),
+        },
+    }
+    (base / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    console.print(f"[green]Demo complete[/green] → {base}")
 
 
 @app.command()
