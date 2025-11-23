@@ -1,8 +1,16 @@
 # ADOIF — Article / DOI Fetcher
+[![Release](https://img.shields.io/github/v/release/stephenmjerge/article-digital-object-identifier-fetcher)](https://github.com/stephenmjerge/article-digital-object-identifier-fetcher/releases/latest)
 
 > **Research-use only:** ADOIF is a lab-grade literature assistant. Keep it for syllabi, journal clubs, and admissions portfolios—not for clinical decision making or PHI storage unless your workflow is IRB-approved and audited.
 
 ADOIF is a local-first research assistant that keeps longitudinal clinical-research libraries organized. It resolves DOIs and keywords into rich metadata, downloads open-access PDFs, extracts and enriches content, and indexes everything for fast recall during lab rotations, practicum work, and translational collaborations.
+
+### TL;DR
+- `adoif demo` — generate a synthetic library (CSV/JSON + HTML) in `outputs/adoif_demo_*`
+- `adoif doctor` — environment check (Python, deps, data directory)
+- `adoif add 10.1038/s41591-021-01627-4 --tag psych --dry-run`
+- Add `--dry-run` to validate configs; HTML summaries saved under `outputs/reports` on ingest
+- Install: `pip install -e ".[dev]"` (Python 3.11+)
 
 ### Visual snapshot
 
@@ -110,6 +118,11 @@ Need a fast way to showcase ADOIF to classmates or admissions reviewers? Follow 
 - ends with the FastAPI dashboard so you can screen-share the whole flow
 
 Because `adoif add` now accepts `--pdf /path/to/local.pdf`, you can attach syllabi or lecture PDFs even when Unpaywall access is unavailable—perfect for offline demos.
+
+### Docs
+- `docs/QUICKSTART.md`
+- `docs/clinician_quickstart.md`
+- Sample profile: `configs/sample.toml`
 
 ### PI-specific exports
 Keep PI or lab-specific reading lists by tagging artifacts with `lab:<identifier>` (e.g., `lab:lab_x`) or by storing DOI lists under `configs/labs/`.

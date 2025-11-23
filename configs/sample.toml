@@ -1,0 +1,9 @@
+[adoif]
+queries = ["ketamine depression", "digital mental health"]
+tags = ["psych", "demo"]
+outdir = "outputs/sample-search"
+
+[adoif.sources]
+crossref = true
+pubmed = false
+openalex = false
